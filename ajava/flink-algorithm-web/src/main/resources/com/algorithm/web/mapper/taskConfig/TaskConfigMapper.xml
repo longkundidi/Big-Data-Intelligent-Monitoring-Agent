@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.algorithm.web.mapper.taskConfig.TaskConfigMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="taskConfigMap" type="com.algorithm.web.model.entity.taskConfig.TaskConfig">
+        <id column="id" property="id" />
+        <result column="task_id" property="taskId" />
+        <result column="sequence" property="sequence" />
+        <result column="pre_type" property="preType" />
+        <result column="al_type" property="alType" />
+        <result column="al_name" property="alName" />
+        <result column="al_short_name" property="alShortName" />
+        <result column="is_service" property="isService" />
+        <result column="is_deployed" property="isDeployed" />
+    </resultMap>
+
+    <select id="getTaskOutputs" resultType="com.algorithm.web.model.entity.taskConfigResult.TaskConfigResult">
+        SELECT *
+        FROM task_config_result
+        WHERE task_id = #{taskId}
+        ORDER BY task_time DESC
+        LIMIT #{size}
+        OFFSET #{offsetValue}
+    </select>
+
+</mapper>

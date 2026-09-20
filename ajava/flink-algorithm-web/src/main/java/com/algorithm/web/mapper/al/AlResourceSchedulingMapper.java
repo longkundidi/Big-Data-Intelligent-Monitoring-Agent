@@ -1,0 +1,50 @@
+package com.algorithm.web.mapper.al;
+
+import com.algorithm.web.model.entity.al.AlResourceScheduling;
+import com.algorithm.web.model.entity.al.AlResourceScheduling;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
+import java.util.Map;
+
+@Mapper
+public interface AlResourceSchedulingMapper extends BaseMapper<AlResourceScheduling> {
+
+	String getnamebyid(long id);
+
+	AlResourceScheduling getbyId(long id);
+
+	IPage<AlResourceScheduling> selectClassPage(IPage page, @Param("modelTypeFirst") String modelTypeFirst,
+			@Param("modelFunction") String modelFunction);
+
+	IPage<AlResourceScheduling> selectClassPagenull(IPage page, @Param("modelTypeFirst") String modelTypeFirst);
+
+	IPage<AlResourceScheduling> selectObj(IPage page, @Param("modelTypeFirst") String modelTypeFirst,
+			@Param("modelFunction") String modelFunction, @Param("modelObject") String modelObject);
+
+	IPage<AlResourceScheduling> selectName(IPage page, @Param("modelTypeFirst") String modelTypeFirst,
+			@Param("modelFunction") String modelFunction, @Param("modelName") String modelName);
+
+	String exitName(String name);
+
+	AlResourceScheduling getbyname(String modelName);
+
+	List<AlResourceScheduling> getByNameLike(@Param("modelName") String modelName);
+
+	@Select("SELECT model_type FROM al_resource_scheduling WHERE id = #{alId}")
+	String getTypeById(@Param("alId") Long alId);
+
+	@Select("SELECT creator FROM al_resource_scheduling WHERE id = #{alId}")
+	String getCreatorById(@Param("alId") Long alId);
+
+	@Select("SELECT model_num FROM al_resource_scheduling WHERE id = #{alId}")
+	Long getNumById(@Param("alId") Long alId);
+
+	@Select("SELECT model_object, object_id FROM al_resource_scheduling WHERE id = #{alId}")
+	Map<String, Object> getCurrentObject(@Param("alId") Long alId);
+
+}

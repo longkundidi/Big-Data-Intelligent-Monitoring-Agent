@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.AlResumePerceivedDataMapper">
+
+  <resultMap id="alResumeDataMap" type="com.algorithm.web.model.entity.al.AlResumePerceivedData">
+    <id property="id" column="id"/>
+    <result property="projectId" column="project_id"/>
+    <result property="perceivedData" column="perceived_data"/>
+  </resultMap>
+
+  <select id="getPreVariables" resultType="java.lang.String">
+    select perceived_data from al_resume_perceived_data where project_id = #{project_id}
+  </select>
+
+  <select id="getFaultInfo" resultType="java.util.Map">
+    select fault_time,fault_name from al_fault_data where project_id=#{project_id} and device_id=#{device_id}
+  </select>
+
+</mapper>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~
+  ~      Copyright (c) 2018-2025, lengleng All rights reserved.
+  ~
+  ~  Redistribution and use in source and binary forms, with or without
+  ~  modification, are permitted provided that the following conditions are met:
+  ~
+  ~ Redistributions of source code must retain the above copyright notice,
+  ~  this list of conditions and the following disclaimer.
+  ~  Redistributions in binary form must reproduce the above copyright
+  ~  notice, this list of conditions and the following disclaimer in the
+  ~  documentation and/or other materials provided with the distribution.
+  ~  Neither the name of the pig4cloud.com developer nor the names of its
+  ~  contributors may be used to endorse or promote products derived from
+  ~  this software without specific prior written permission.
+  ~  Author: lengleng (wangiegie@gmail.com)
+  ~
+  -->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.DomainModelConfigurationMapper">
+
+  <resultMap id="domainModelConfigurationMap" type="com.algorithm.web.model.entity.al.DomainModelConfiguration">
+    <id property="id" column="id"/>
+    <result property="code" column="code"/>
+    <result property="modelName" column="model_name"/>
+    <result property="almodelType" column="almodel_type"/>
+    <result property="modelObject" column="model_object"/>
+    <result property="objectId" column="object_id"/>
+    <result property="sequence" column="sequence"/>
+    <result property="createTime" column="create_time"/>
+    <result property="isPass" column="is_pass"/>
+    <result property="isDeployed" column="is_deployed"/>
+    <result property="modelNum" column="model_num"/>
+    <result property="isService" column="is_service"/>
+    <result property="almodelIcon" column="almodel_icon"/>
+    <result property="vote" column="vote"/>
+  </resultMap>
+
+
+</mapper>

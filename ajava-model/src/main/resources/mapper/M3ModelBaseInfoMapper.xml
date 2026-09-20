@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~
+  ~      Copyright (c) 2018-2025, lengleng All rights reserved.
+  ~
+  ~  Redistribution and use in source and binary forms, with or without
+  ~  modification, are permitted provided that the following conditions are met:
+  ~
+  ~ Redistributions of source code must retain the above copyright notice,
+  ~  this list of conditions and the following disclaimer.
+  ~  Redistributions in binary form must reproduce the above copyright
+  ~  notice, this list of conditions and the following disclaimer in the
+  ~  documentation and/or other materials provided with the distribution.
+  ~  Neither the name of the pig4cloud.com developer nor the names of its
+  ~  contributors may be used to endorse or promote products derived from
+  ~  this software without specific prior written permission.
+  ~  Author: lengleng (wangiegie@gmail.com)
+  ~
+  -->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sw.model3d.modelBaseInfo.mapper.M3ModelBaseInfoMapper">
+
+  <resultMap id="m3ModelBaseInfoMap" type="sw.model3d.modelBaseInfo.entity.M3ModelBaseInfo">
+    <id property="mbId" column="mb_id"/>
+    <result property="mbCode" column="mb_code"/>
+    <result property="mbName" column="mb_name"/>
+    <result property="scenePara" column="scene_para"/>
+    <result property="imageUrl" column="image_url"/>
+    <result property="modelNumber" column="model_number"/>
+    <result property="totalSize" column="total_size"/>
+    <result property="nodeNo" column="node_no"/>
+    <result property="nodeSort" column="node_sort"/>
+    <result property="nodeLevel" column="node_level"/>
+    <result property="nodeType" column="node_type"/>
+    <result property="createTime" column="create_time"/>
+    <result property="creator" column="creator"/>
+  </resultMap>
+  <select id="getSonNode" resultType="sw.model3d.modelBaseInfo.entity.M3ModelBaseInfo">
+    SELECT mb_id AS mbId,
+           mb_code AS mbCode,
+           mb_name AS mbName,
+           scene_para AS scenePara,
+           image_url AS imageUrl,
+           model_number AS modelNumber,
+           total_size AS totalSize,
+           node_sort AS nodeSort,
+           node_type AS nodeType,
+           create_time AS createTime,
+           creator AS creator
+    FROM m3_model_base_info WHERE mb_code REGEXP CONCAT('^',#{mbCode},'-[0-9]*$') ORDER BY node_sort ASC
+  </select>
+</mapper>

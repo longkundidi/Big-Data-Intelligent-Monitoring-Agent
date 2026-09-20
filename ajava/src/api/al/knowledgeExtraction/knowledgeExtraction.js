@@ -1,0 +1,102 @@
+import request from "@/router/axios"
+import Qs from "qs";
+
+const baseUrl = '/al';
+
+export function fetchList(query) {
+    return request({
+        url: `${baseUrl}/alKnowledgeExtraction/page`,
+        method: 'get',
+        params: query
+    })
+}
+
+export function addObj(obj) {
+    return request({
+        url: `${baseUrl}/alKnowledgeExtraction`,
+        method: 'post',
+        data: obj
+    })
+}
+
+export function getExtractionObj(id) {
+    return request({
+        url: `${baseUrl}/alKnowledgeExtraction/` + id,
+        method: 'get'
+    })
+}
+
+export function delExtractionObj(id) {
+    return request({
+        url: `${baseUrl}/alKnowledgeExtraction/` + id,
+        method: 'delete'
+    })
+}
+
+export function putObj(obj) {
+    return request({
+        url: `${baseUrl}/alKnowledgeExtraction`,
+        method: 'put',
+        data: obj
+    })
+}
+
+export function getTasks(pageNum, pageSize, jobId, jobName, jobType, status, open) {
+    return request({
+        url: `${baseUrl}/listTask`,
+        method: 'post',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        transformRequest: [function (data) {
+            return Qs.stringify(data)
+        }],
+        data: {
+            pageNum: pageNum,
+            pageSize: pageSize,
+            jobId: jobId,
+            jobName: jobName,
+            jobType: jobType,
+            status: status,
+            open: open
+        }
+    })
+}
+
+export function getTypeNum(query) {
+    return request({
+        url: `${baseUrl}/alKnowledgeExtraction/getTypeNum/` + query,
+        method: 'get',
+    })
+}
+
+export function exitName(name) {
+    return request({
+        url: `${baseUrl}/alKnowledgeExtraction/exitName/` + name,
+        method: 'get',
+    })
+}
+
+export function uploadIcon(file) {
+    return request({
+        url: `${baseUrl}/file/uploadFile3`,
+        method: 'post',
+        data: file,
+        config: {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        }
+    })
+}
+
+export function uploadProgram(alName, file) {
+    return request({
+        url: `${baseUrl}/file/uploadFile4/` + alName,
+        method: 'post',
+        data: file,
+        config: {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        }
+    })
+}

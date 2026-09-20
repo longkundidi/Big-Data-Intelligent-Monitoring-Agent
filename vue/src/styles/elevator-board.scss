@@ -1,0 +1,605 @@
+.elevator-board-shell {
+  --elevator-panel: rgba(5, 39, 65, 0.76);
+  --elevator-panel-strong: rgba(3, 24, 45, 0.88);
+  --elevator-line: rgba(122, 214, 240, 0.22);
+  --elevator-line-bright: rgba(168, 232, 248, 0.4);
+  --elevator-text: #ffffff;
+  --elevator-muted: rgba(255, 255, 255, 0.78);
+  --elevator-accent: #80d8ed;
+  --elevator-accent-soft: rgba(128, 216, 237, 0.12);
+  --elevator-green: #6bd6bd;
+  --elevator-red: #ff8a92;
+}
+
+.elevator-board-shell,
+.elevator-board-shell * {
+  box-sizing: border-box;
+}
+
+.elevator-board-shell #avue-view {
+  position: relative;
+  padding: 10px;
+  background:
+    radial-gradient(circle at 58% 2%, rgba(53, 168, 218, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(4, 27, 52, 0.34), rgba(2, 16, 34, 0.58));
+}
+
+.elevator-board-shell #avue-view::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(128, 216, 237, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(128, 216, 237, 0.022) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.58), transparent 82%);
+}
+
+.elevator-board-shell #avue-view > * {
+  position: relative;
+  z-index: 1;
+}
+
+.elevator-board-shell .my-avue-logo {
+  background: linear-gradient(180deg, rgba(5, 36, 60, 0.88), rgba(3, 21, 42, 0.94));
+  border-right: 1px solid var(--elevator-line);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.07);
+}
+
+.elevator-board-shell .my-avue-top {
+  color: var(--elevator-text);
+}
+
+.elevator-board-shell .my-avue-breadcrumb i,
+.elevator-board-shell .top-bar__item i,
+.elevator-board-shell .top-user,
+.elevator-board-shell .el-dropdown-link {
+  color: var(--elevator-text) !important;
+}
+
+.elevator-board-shell .top-bar__right {
+  color: var(--elevator-text);
+}
+
+.elevator-board-shell .top-bar__img {
+  border-color: rgba(168, 232, 248, 0.32);
+  box-shadow: 0 0 14px rgba(80, 174, 210, 0.16);
+}
+
+.elevator-board-shell .top-menu,
+.elevator-board-shell .top-menu.el-menu {
+  background: transparent !important;
+  border-bottom: 0 !important;
+}
+
+.elevator-board-shell .top-menu .el-menu-item {
+  height: 60px;
+  color: var(--elevator-muted) !important;
+  border-bottom: 0 !important;
+}
+
+.elevator-board-shell .top-menu .el-menu-item:hover,
+.elevator-board-shell .top-menu .el-menu-item.is-active {
+  color: var(--elevator-text) !important;
+  background: rgba(128, 216, 237, 0.1) !important;
+}
+
+.elevator-board-shell .my-avue-menu {
+  height: 100%;
+  background: transparent;
+}
+
+.elevator-board-shell .my-avue-sidebar .el-menu {
+  background: transparent !important;
+  border-right: 0 !important;
+}
+
+.elevator-board-shell .my-avue-sidebar .el-menu-item,
+.elevator-board-shell .my-avue-sidebar .el-sub-menu__title {
+  height: 46px;
+  line-height: 46px;
+  margin: 4px 8px;
+  border-radius: 6px;
+  color: var(--elevator-muted) !important;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.elevator-board-shell .my-avue-sidebar .el-menu-item i,
+.elevator-board-shell .my-avue-sidebar .el-menu-item span,
+.elevator-board-shell .my-avue-sidebar .el-sub-menu__title i,
+.elevator-board-shell .my-avue-sidebar .el-sub-menu__title span {
+  color: inherit !important;
+}
+
+.elevator-board-shell .my-avue-sidebar .el-menu-item:hover,
+.elevator-board-shell .my-avue-sidebar .el-sub-menu__title:hover {
+  color: var(--elevator-text) !important;
+  background: rgba(128, 216, 237, 0.1) !important;
+}
+
+.elevator-board-shell .my-avue-sidebar .el-menu-item.is-active {
+  color: #ffffff !important;
+  background: linear-gradient(90deg, rgba(42, 138, 177, 0.5), rgba(128, 216, 237, 0.1)) !important;
+  box-shadow: inset 3px 0 0 var(--elevator-accent), 0 10px 24px rgba(0, 10, 22, 0.22);
+}
+
+.elevator-board-shell .my-avue-sidebar .el-menu-item.is-active::before {
+  display: none !important;
+}
+
+.elevator-board-shell .avue-sidebar--tip {
+  color: var(--elevator-muted);
+  background: rgba(2, 14, 26, 0.62);
+  border: 1px solid var(--elevator-line);
+}
+
+.elevator-board-shell .avue-tags {
+  height: 44px;
+  margin: 0;
+  padding: 0 10px;
+  background: linear-gradient(180deg, rgba(5, 37, 63, 0.78), rgba(3, 23, 45, 0.88));
+  border-top: 0;
+  border-bottom: 1px solid var(--elevator-line);
+  box-shadow: none;
+}
+
+.elevator-board-shell .avue-tags__box {
+  height: 44px;
+}
+
+.elevator-board-shell .avue-tags .el-tabs--card > .el-tabs__header,
+.elevator-board-shell .avue-tags .el-tabs__nav,
+.elevator-board-shell .avue-tags .el-tabs__item {
+  border: 0 !important;
+}
+
+.elevator-board-shell .avue-tags .el-tabs__item {
+  height: 36px !important;
+  line-height: 36px !important;
+  margin: 4px 3px 0;
+  border-radius: 6px 6px 0 0;
+  color: var(--elevator-muted) !important;
+}
+
+.elevator-board-shell .avue-tags .el-tabs__item.is-active {
+  color: #ffffff !important;
+  background: rgba(128, 216, 237, 0.1);
+  border-bottom: 2px solid var(--elevator-accent) !important;
+}
+
+.elevator-board-shell .avue-tags__menu {
+  top: 5px;
+}
+
+.elevator-board-shell .basic-container {
+  padding: 8px;
+}
+
+.elevator-board-shell .basic-container > .el-card,
+.elevator-board-shell .el-card {
+  color: var(--elevator-text);
+  background: linear-gradient(180deg, rgba(6, 45, 72, 0.72), rgba(3, 24, 45, 0.86)) !important;
+  border: 1px solid var(--elevator-line) !important;
+  border-radius: 8px;
+  box-shadow: 0 18px 38px rgba(0, 8, 18, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+}
+
+.elevator-board-shell .basic-container > .el-card > .el-card__body {
+  color: var(--elevator-text);
+  background: transparent;
+}
+
+.elevator-board-shell .el-card__header {
+  color: var(--elevator-text);
+  border-bottom: 1px solid var(--elevator-line);
+  background: rgba(128, 216, 237, 0.06);
+}
+
+.elevator-board-shell .el-main,
+.elevator-board-shell .el-container,
+.elevator-board-shell .avue-crud,
+.elevator-board-shell .avue-crud__header,
+.elevator-board-shell .avue-crud__menu,
+.elevator-board-shell .avue-crud__search,
+.elevator-board-shell .avue-crud__pagination,
+.elevator-board-shell .avue-form,
+.elevator-board-shell .avue-group,
+.elevator-board-shell .avue-detail {
+  color: var(--elevator-text);
+  background: transparent !important;
+}
+
+.elevator-board-shell .avue-crud__search {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--elevator-line);
+  border-radius: 8px;
+  background: rgba(4, 30, 55, 0.62) !important;
+}
+
+.elevator-board-shell .el-form-item__label,
+.elevator-board-shell .avue-form__label,
+.elevator-board-shell .el-checkbox,
+.elevator-board-shell .el-radio,
+.elevator-board-shell .el-descriptions__label,
+.elevator-board-shell .el-descriptions__content {
+  color: var(--elevator-muted) !important;
+}
+
+.elevator-board-shell .el-input__wrapper,
+.elevator-board-shell .el-select__wrapper,
+.elevator-board-shell .el-textarea__inner,
+.elevator-board-shell .el-input__inner,
+.elevator-board-shell .el-date-editor,
+.elevator-board-shell .el-input-group__append,
+.elevator-board-shell .el-input-group__prepend {
+  color: var(--elevator-text) !important;
+  background: rgba(3, 24, 45, 0.72) !important;
+  border-color: rgba(122, 214, 240, 0.24) !important;
+  box-shadow: 0 0 0 1px rgba(122, 214, 240, 0.16) inset !important;
+}
+
+.elevator-board-shell .el-input__inner::placeholder,
+.elevator-board-shell .el-textarea__inner::placeholder {
+  color: rgba(255, 255, 255, 0.38) !important;
+}
+
+.elevator-board-shell .el-input__wrapper:hover,
+.elevator-board-shell .el-select__wrapper:hover,
+.elevator-board-shell .el-textarea__inner:hover,
+.elevator-board-shell .el-input__inner:hover {
+  border-color: var(--elevator-line-bright) !important;
+  box-shadow: 0 0 0 1px var(--elevator-line-bright) inset !important;
+}
+
+.elevator-board-shell .el-input__wrapper.is-focus,
+.elevator-board-shell .el-select__wrapper.is-focused,
+.elevator-board-shell .el-textarea__inner:focus,
+.elevator-board-shell .el-input__inner:focus {
+  border-color: var(--elevator-accent) !important;
+  box-shadow: 0 0 0 1px rgba(128, 216, 237, 0.42) inset, 0 0 12px rgba(80, 174, 210, 0.1) !important;
+}
+
+.elevator-board-shell .el-button,
+.elevator-board-shell .normalBtn {
+  color: var(--elevator-text) !important;
+  background: linear-gradient(180deg, rgba(31, 93, 122, 0.78), rgba(10, 55, 82, 0.9)) !important;
+  border: 1px solid rgba(122, 214, 240, 0.28) !important;
+  border-radius: 6px;
+  box-shadow: 0 8px 18px rgba(0, 10, 22, 0.2);
+}
+
+.elevator-board-shell .el-button:hover,
+.elevator-board-shell .normalBtn:hover {
+  color: #ffffff !important;
+  background: linear-gradient(180deg, rgba(42, 118, 150, 0.86), rgba(13, 71, 100, 0.94)) !important;
+  border-color: rgba(168, 232, 248, 0.46) !important;
+}
+
+.elevator-board-shell .el-button--primary {
+  background: linear-gradient(180deg, rgba(43, 137, 172, 0.88), rgba(14, 82, 112, 0.94)) !important;
+  border-color: rgba(168, 232, 248, 0.5) !important;
+}
+
+.elevator-board-shell .el-button--danger {
+  background: linear-gradient(180deg, rgba(253, 98, 110, 0.9), rgba(139, 34, 52, 0.96)) !important;
+  border-color: rgba(255, 142, 151, 0.68) !important;
+}
+
+.elevator-board-shell .el-table,
+.elevator-board-shell .el-table__expanded-cell {
+  color: var(--elevator-text) !important;
+  background: transparent !important;
+}
+
+.elevator-board-shell .el-table::before,
+.elevator-board-shell .el-table__inner-wrapper::before {
+  background: rgba(122, 214, 240, 0.12) !important;
+}
+
+.elevator-board-shell .el-table th.el-table__cell,
+.elevator-board-shell .el-table tr,
+.elevator-board-shell .el-table td.el-table__cell {
+  color: var(--elevator-text);
+  background: transparent !important;
+  border-bottom: 1px solid rgba(122, 214, 240, 0.13) !important;
+}
+
+.elevator-board-shell .el-table th.el-table__cell {
+  color: #ffffff;
+  background: rgba(128, 216, 237, 0.08) !important;
+  font-weight: 600;
+}
+
+.elevator-board-shell .el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
+  background: rgba(128, 216, 237, 0.08) !important;
+}
+
+.elevator-board-shell .el-pagination,
+.elevator-board-shell .el-pagination button,
+.elevator-board-shell .el-pager li {
+  color: var(--elevator-muted) !important;
+  background: transparent !important;
+}
+
+.elevator-board-shell .el-pager li.is-active {
+  color: #ffffff !important;
+  background: rgba(128, 216, 237, 0.14) !important;
+  border-radius: 4px;
+}
+
+.elevator-board-shell .el-tree {
+  color: var(--elevator-text);
+  background: transparent !important;
+}
+
+.elevator-board-shell .el-tree-node__content {
+  border-radius: 6px;
+  color: var(--elevator-muted);
+}
+
+.elevator-board-shell .el-tree-node__content:hover,
+.elevator-board-shell .el-tree-node.is-current > .el-tree-node__content {
+  color: #ffffff !important;
+  background: rgba(128, 216, 237, 0.1) !important;
+}
+
+.elevator-board-shell .el-tabs__header {
+  border-bottom-color: var(--elevator-line) !important;
+}
+
+.elevator-board-shell .el-tabs__item {
+  color: var(--elevator-muted);
+}
+
+.elevator-board-shell .el-tabs__item.is-active {
+  color: var(--elevator-accent);
+}
+
+.elevator-board-shell .el-tabs__active-bar {
+  background: var(--elevator-accent);
+}
+
+.elevator-board-shell .el-divider {
+  border-color: var(--elevator-line) !important;
+  background: var(--elevator-line) !important;
+}
+
+.elevator-board-shell h1,
+.elevator-board-shell h2,
+.elevator-board-shell h3,
+.elevator-board-shell h4,
+.elevator-board-shell .title {
+  color: var(--elevator-text);
+}
+
+.elevator-board-shell a {
+  color: #ffffff;
+}
+
+.elevator-board-shell .el-tag {
+  color: #ffffff;
+  background: rgba(128, 216, 237, 0.1);
+  border-color: rgba(122, 214, 240, 0.24);
+}
+
+.elevator-board-shell .el-alert,
+.elevator-board-shell .el-empty,
+.elevator-board-shell .el-result {
+  color: var(--elevator-muted);
+  background: transparent;
+}
+
+/* 操作浮层保持浅色，避免看板暗色样式影响表单弹窗的可读性 */
+.elevator-board-shell .el-dialog,
+.elevator-board-shell .el-message-box,
+.elevator-board-shell .el-drawer,
+.elevator-board-shell .el-popover.el-popper,
+.elevator-board-shell .el-popper.is-light,
+.elevator-board-shell .el-select__popper,
+.elevator-board-shell .el-picker__popper,
+.elevator-board-shell .el-cascader__dropdown,
+.elevator-board-shell .el-dropdown__popper {
+  color: #303133 !important;
+  background: #ffffff !important;
+  border-color: #dcdfe6 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18) !important;
+}
+
+.elevator-board-shell .el-dialog__header,
+.elevator-board-shell .el-dialog__body,
+.elevator-board-shell .el-dialog__footer,
+.elevator-board-shell .el-message-box__header,
+.elevator-board-shell .el-message-box__content,
+.elevator-board-shell .el-message-box__btns,
+.elevator-board-shell .el-drawer__header,
+.elevator-board-shell .el-drawer__body,
+.elevator-board-shell .el-drawer__footer {
+  color: #303133 !important;
+  background: #ffffff !important;
+}
+
+.elevator-board-shell .el-dialog__title,
+.elevator-board-shell .el-message-box__title,
+.elevator-board-shell .el-drawer__title {
+  color: #303133 !important;
+}
+
+.elevator-board-shell .el-dialog__headerbtn .el-dialog__close,
+.elevator-board-shell .el-message-box__headerbtn .el-message-box__close,
+.elevator-board-shell .el-drawer__close-btn {
+  color: #909399 !important;
+}
+
+.elevator-board-shell .el-dialog .el-card,
+.elevator-board-shell .el-message-box .el-card,
+.elevator-board-shell .el-drawer .el-card,
+.elevator-board-shell .el-popover .el-card {
+  color: #303133 !important;
+  background: #ffffff !important;
+  border: 1px solid #ebeef5 !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.elevator-board-shell .el-dialog .el-card__header,
+.elevator-board-shell .el-message-box .el-card__header,
+.elevator-board-shell .el-drawer .el-card__header,
+.elevator-board-shell .el-popover .el-card__header {
+  color: #303133 !important;
+  background: #ffffff !important;
+  border-bottom-color: #ebeef5 !important;
+}
+
+.elevator-board-shell .el-dialog .avue-form,
+.elevator-board-shell .el-dialog .avue-group,
+.elevator-board-shell .el-dialog .avue-detail,
+.elevator-board-shell .el-message-box .avue-form,
+.elevator-board-shell .el-drawer .avue-form,
+.elevator-board-shell .el-popover .avue-form {
+  color: #303133 !important;
+  background: #ffffff !important;
+}
+
+.elevator-board-shell .el-dialog .el-form-item__label,
+.elevator-board-shell .el-dialog .avue-form__label,
+.elevator-board-shell .el-dialog .el-checkbox,
+.elevator-board-shell .el-dialog .el-radio,
+.elevator-board-shell .el-dialog .el-descriptions__label,
+.elevator-board-shell .el-dialog .el-descriptions__content,
+.elevator-board-shell .el-message-box .el-form-item__label,
+.elevator-board-shell .el-drawer .el-form-item__label,
+.elevator-board-shell .el-popover .el-form-item__label {
+  color: #606266 !important;
+}
+
+.elevator-board-shell .el-dialog .el-input__wrapper,
+.elevator-board-shell .el-dialog .el-select__wrapper,
+.elevator-board-shell .el-dialog .el-textarea__inner,
+.elevator-board-shell .el-dialog .el-input__inner,
+.elevator-board-shell .el-dialog .el-date-editor,
+.elevator-board-shell .el-dialog .el-input-group__append,
+.elevator-board-shell .el-dialog .el-input-group__prepend,
+.elevator-board-shell .el-message-box .el-input__wrapper,
+.elevator-board-shell .el-message-box .el-input__inner,
+.elevator-board-shell .el-drawer .el-input__wrapper,
+.elevator-board-shell .el-drawer .el-select__wrapper,
+.elevator-board-shell .el-drawer .el-textarea__inner,
+.elevator-board-shell .el-drawer .el-input__inner,
+.elevator-board-shell .el-popover .el-input__wrapper,
+.elevator-board-shell .el-popover .el-select__wrapper,
+.elevator-board-shell .el-popover .el-textarea__inner,
+.elevator-board-shell .el-popover .el-input__inner {
+  color: #303133 !important;
+  background: #ffffff !important;
+  border-color: #dcdfe6 !important;
+  box-shadow: 0 0 0 1px #dcdfe6 inset !important;
+}
+
+.elevator-board-shell .el-dialog .el-input__inner::placeholder,
+.elevator-board-shell .el-dialog .el-textarea__inner::placeholder,
+.elevator-board-shell .el-message-box .el-input__inner::placeholder,
+.elevator-board-shell .el-drawer .el-input__inner::placeholder,
+.elevator-board-shell .el-popover .el-input__inner::placeholder {
+  color: #a8abb2 !important;
+}
+
+.elevator-board-shell .el-dialog .el-tree,
+.elevator-board-shell .el-message-box .el-tree,
+.elevator-board-shell .el-drawer .el-tree,
+.elevator-board-shell .el-popover .el-tree {
+  color: #303133 !important;
+  background: #ffffff !important;
+}
+
+.elevator-board-shell .el-dialog .el-tree-node__content,
+.elevator-board-shell .el-message-box .el-tree-node__content,
+.elevator-board-shell .el-drawer .el-tree-node__content,
+.elevator-board-shell .el-popover .el-tree-node__content {
+  color: #606266 !important;
+  background: transparent !important;
+}
+
+.elevator-board-shell .el-dialog .el-tree-node__content:hover,
+.elevator-board-shell .el-dialog .el-tree-node.is-current > .el-tree-node__content,
+.elevator-board-shell .el-message-box .el-tree-node__content:hover,
+.elevator-board-shell .el-drawer .el-tree-node__content:hover,
+.elevator-board-shell .el-popover .el-tree-node__content:hover {
+  color: #409eff !important;
+  background: #ecf5ff !important;
+}
+
+.elevator-board-shell .el-dialog .tree-btn .btn,
+.elevator-board-shell .el-message-box .tree-btn .btn,
+.elevator-board-shell .el-drawer .tree-btn .btn,
+.elevator-board-shell .el-popover .tree-btn .btn {
+  color: #606266 !important;
+}
+
+.elevator-board-shell .el-dialog .el-table,
+.elevator-board-shell .el-dialog .el-table__expanded-cell,
+.elevator-board-shell .el-message-box .el-table,
+.elevator-board-shell .el-drawer .el-table,
+.elevator-board-shell .el-popover .el-table {
+  color: #303133 !important;
+  background: #ffffff !important;
+}
+
+.elevator-board-shell .el-dialog .el-table th.el-table__cell,
+.elevator-board-shell .el-dialog .el-table tr,
+.elevator-board-shell .el-dialog .el-table td.el-table__cell,
+.elevator-board-shell .el-message-box .el-table th.el-table__cell,
+.elevator-board-shell .el-message-box .el-table tr,
+.elevator-board-shell .el-message-box .el-table td.el-table__cell,
+.elevator-board-shell .el-drawer .el-table th.el-table__cell,
+.elevator-board-shell .el-drawer .el-table tr,
+.elevator-board-shell .el-drawer .el-table td.el-table__cell {
+  color: #303133 !important;
+  background: #ffffff !important;
+  border-bottom-color: #ebeef5 !important;
+}
+
+.elevator-board-shell .el-dialog .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.el-button--info),
+.elevator-board-shell .el-message-box .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.el-button--info),
+.elevator-board-shell .el-drawer .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.el-button--info),
+.elevator-board-shell .el-popover .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.el-button--info) {
+  color: #606266 !important;
+  background: #ffffff !important;
+  border-color: #dcdfe6 !important;
+  box-shadow: none !important;
+}
+
+.elevator-board-shell .el-dialog .el-button--primary,
+.elevator-board-shell .el-message-box .el-button--primary,
+.elevator-board-shell .el-drawer .el-button--primary,
+.elevator-board-shell .el-popover .el-button--primary {
+  color: #ffffff !important;
+  background: #409eff !important;
+  border-color: #409eff !important;
+  box-shadow: none !important;
+}
+
+.elevator-board-shell .el-dialog .el-button--danger,
+.elevator-board-shell .el-message-box .el-button--danger,
+.elevator-board-shell .el-drawer .el-button--danger,
+.elevator-board-shell .el-popover .el-button--danger {
+  color: #ffffff !important;
+  background: #f56c6c !important;
+  border-color: #f56c6c !important;
+  box-shadow: none !important;
+}
+
+.elevator-board-shell .el-popper.is-light .el-select-dropdown__item,
+.elevator-board-shell .el-popper.is-light .el-cascader-node,
+.elevator-board-shell .el-popper.is-light .el-dropdown-menu__item {
+  color: #606266 !important;
+  background: #ffffff !important;
+}
+
+.elevator-board-shell .el-popper.is-light .el-select-dropdown__item.hover,
+.elevator-board-shell .el-popper.is-light .el-select-dropdown__item:hover,
+.elevator-board-shell .el-popper.is-light .el-cascader-node:hover,
+.elevator-board-shell .el-popper.is-light .el-dropdown-menu__item:hover {
+  color: #409eff !important;
+  background: #ecf5ff !important;
+}

@@ -1,0 +1,56 @@
+/*
+ *    Copyright (c) 2018-2025, lengleng All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ * Neither the name of the pig4cloud.com developer nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ * Author: lengleng (wangiegie@gmail.com)
+ */
+package sw.model3d.configResumeFaultData.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import sw.model3d.configResumeFaultData.entity.ConfigResumeFaultData;
+import sw.model3d.configResumeFaultData.mapper.ConfigResumeFaultDataMapper;
+import sw.model3d.configResumeFaultData.service.ConfigResumeFaultDataService;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * 风机实例的实际报警信息
+ *
+ * @author pig code generator
+ * @date 2024-07-24 17:21:39
+ */
+@Service
+public class ConfigResumeFaultDataServiceImpl extends ServiceImpl<ConfigResumeFaultDataMapper, ConfigResumeFaultData>
+		implements ConfigResumeFaultDataService {
+
+	@Override
+	public List<ConfigResumeFaultData> getConfigResumeFaultDataPage(Integer currentPage, Integer pageSize,
+			String nodeId) {
+		Page<ConfigResumeFaultData> page = new Page<>(currentPage, pageSize);
+		LambdaQueryWrapper<ConfigResumeFaultData> queryWrapper = new LambdaQueryWrapper<>();
+		queryWrapper.eq(ConfigResumeFaultData::getNodeId, nodeId);
+		Page<ConfigResumeFaultData> page1 = page(page, queryWrapper);
+		return page1.getRecords();
+	}
+
+	@Override
+	public List<ConfigResumeFaultData> getFaultByTime(String nodeId, LocalDateTime startTime, LocalDateTime endTime) {
+
+		return this.getBaseMapper().getFaultByTime(nodeId, startTime, endTime);
+	}
+
+}

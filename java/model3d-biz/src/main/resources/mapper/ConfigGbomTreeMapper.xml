@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~
+  ~      Copyright (c) 2018-2025, lengleng All rights reserved.
+  ~
+  ~  Redistribution and use in source and binary forms, with or without
+  ~  modification, are permitted provided that the following conditions are met:
+  ~
+  ~ Redistributions of source code must retain the above copyright notice,
+  ~  this list of conditions and the following disclaimer.
+  ~  Redistributions in binary form must reproduce the above copyright
+  ~  notice, this list of conditions and the following disclaimer in the
+  ~  documentation and/or other materials provided with the distribution.
+  ~  Neither the name of the pig4cloud.com developer nor the names of its
+  ~  contributors may be used to endorse or promote products derived from
+  ~  this software without specific prior written permission.
+  ~  Author: lengleng (wangiegie@gmail.com)
+  ~
+  -->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sw.model3d.configGbomTree.mapper.ConfigGbomTreeMapper">
+
+    <resultMap id="configGbomTreeMap" type="sw.model3d.configGbomTree.entity.ConfigGbomTree">
+        <id property="nodeId" column="node_id"/>
+        <result property="nodeCode" column="node_code"/>
+        <result property="userCode" column="user_code"/>
+        <result property="nodeName" column="node_name"/>
+        <result property="nodeNo" column="node_no"/>
+        <result property="swsort" column="swsort"/>
+        <result property="nodeLevel" column="node_level"/>
+        <result property="nodeType" column="node_type"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="memo" column="memo"/>
+        <result property="projCode" column="proj_code"/>
+    </resultMap>
+
+    <select id="getTreeNodes" resultType="sw.model3d.configGbomTree.entity.ConfigGbomTreeVo">
+        SELECT node_id                                                                              as id,
+               node_code                                                                            as nodeCode,
+               node_name                                                                            as name,
+               node_type                                                                            as nodeType,
+               node_level                                                                           as nodeLevel,
+               IF(STRCMP(node_type, "Leaf") = 0 OR STRCMP(node_type, "Root-Leaf") = 0, true, false) as leaf,
+               scene_id                                                                             as sceneId,
+               used_count                                                                           as usedCount,
+               update_time                                                                          as updateTime,
+               memo                                                                                 as memo
+        FROM config_gbom_tree
+        WHERE node_level &lt;= #{nodeLevel}
+        ORDER BY swsort asc
+    </select>
+
+    <select id="getTreeNodesBySceneId" resultType="sw.model3d.configGbomTree.entity.ConfigGbomTreeVo">
+        SELECT node_id                                                                              as id,
+               node_code                                                                            as nodeCode,
+               node_name                                                                            as name,
+               node_type                                                                            as nodeType,
+               node_level                                                                           as nodeLevel,
+               IF(STRCMP(node_type, "Leaf") = 0 OR STRCMP(node_type, "Root-Leaf") = 0, true, false) as leaf,
+               update_time                                                                          as updateTime,
+               memo                                                                                 as memo,
+               used_count                                                                           as usedCount,
+               scene_id                                                                             as sceneId
+        FROM config_gbom_tree
+        WHERE node_level &lt;= #{nodeLevel} and scene_id = #{sceneId}
+        ORDER BY swsort asc
+    </select>
+
+    <select id="getSonNodes" resultType="sw.model3d.configGbomTree.entity.ConfigGbomTreeVo">
+        SELECT node_id                                                                              as id,
+               node_code                                                                            as nodeCode,
+               node_name                                                                            as name,
+               node_type                                                                            as nodeType,
+               node_level                                                                           as nodeLevel,
+               IF(STRCMP(node_type, "Leaf") = 0 OR STRCMP(node_type, "Root-Leaf") = 0, true, false) as leaf,
+               scene_id                                                                             as sceneId,
+               used_count                                                                           as usedCount,
+               update_time                                                                          as updateTime,
+               memo                                                                                 as memo
+        FROM config_gbom_tree
+        WHERE node_code REGEXP CONCAT('^',#{nodeCode}
+            , '-[0-9]*$')
+        ORDER BY swsort asc
+    </select>
+
+    <select id="getSonNodesBySceneId" resultType="sw.model3d.configGbomTree.entity.ConfigGbomTreeVo">
+        SELECT node_id                                                                              as id,
+               node_code                                                                            as nodeCode,
+               node_name                                                                            as name,
+               node_type                                                                            as nodeType,
+               node_level                                                                           as nodeLevel,
+               IF(STRCMP(node_type, "Leaf") = 0 OR STRCMP(node_type, "Root-Leaf") = 0, true, false) as leaf,
+               update_time                                                                          as updateTime,
+               memo                                                                                 as memo,
+               used_count                                                                           as usedCount,
+               scene_id                                                                             as sceneId
+        FROM config_gbom_tree
+        WHERE node_code REGEXP CONCAT('^',#{nodeCode}
+            , '-[0-9]*$') and scene_id = #{sceneId}
+        ORDER BY swsort asc
+    </select>
+
+
+    <select id="getAllSubNodesByNodeCode" resultType="sw.model3d.configGbomTree.entity.ConfigGbomTree">
+        SELECT node_code,
+               user_code,
+               node_name,
+               node_no,
+               swsort,
+               node_level,
+               node_type,
+               memo,
+               proj_code
+        FROM config_gbom_tree
+        WHERE node_code REGEXP CONCAT('^',#{nodeCode}
+            , '-')
+        ORDER BY node_code asc
+    </select>
+
+</mapper>

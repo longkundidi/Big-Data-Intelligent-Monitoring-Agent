@@ -1,0 +1,43 @@
+package com.algorithm.web.mapper;
+
+import com.algorithm.web.model.entity.BatchJob;
+import com.algorithm.web.model.entity.JobConfig;
+import com.algorithm.web.model.param.JobConfigParam;
+import com.github.pagehelper.Page;
+import java.util.List;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface JobConfigMapper {
+
+	int insert(JobConfig record);
+
+	int insertWithId(JobConfig record);
+
+	long selectCountByJobName(@Param("jobName") String jobName, @Param("id") Long id);
+
+	JobConfig selectByPrimaryKey(Long id);
+
+	JobConfig selectByPrimaryKeyContainDelete(Long id);
+
+	int updateByPrimaryKeySelective(JobConfig record);
+
+	int updateStatusByStart(@Param("id") Long id, @Param("status") Integer status, @Param("userName") String userName,
+			@Param("jobRunLogId") Long jobRunLogId, @Param("oldVersion") Integer oldVersion);
+
+	Page<JobConfig> findJobConfig(JobConfigParam jobConfigParam);
+
+	int deleteById(@Param("id") Long id, @Param("userName") String userName);
+
+	int recoveryDeleteJobConfigById(@Param("id") Long id, @Param("userName") String userName);
+
+	List<JobConfig> findJobConfigByStatus(@Param("statusList") List<Integer> statusList);
+
+	List<BatchJob> getAllBatchJobs();
+
+	@Select("SELECT COUNT(DISTINCT job_name) FROM new_algorithom_Repository.job_config WHERE status=-1 AND is_deleted=0")
+	Long getFailedTaskCount(@Param("status") Long status);
+
+}

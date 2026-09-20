@@ -1,0 +1,17 @@
+services:
+  elevator-fault-diagnosis:
+    image: 192.168.16.211/algorithm/elevator-fault-diagnosis:0.0.1
+    container_name: elevator-fault-diagnosis
+    restart: always
+    ports:
+      - "8874:80"
+    mem_limit: 2g
+    cpus: 2.0
+    networks:
+      network:
+        ipv4_address: 177.9.0.127
+
+networks:
+  network:
+    external: true
+    name: knowledgegraph_network

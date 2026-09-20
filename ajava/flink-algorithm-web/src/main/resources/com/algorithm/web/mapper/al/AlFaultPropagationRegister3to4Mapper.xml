@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.AlFaultPropagationRegister3to4Mapper">
+
+    <resultMap id="alFaultPropagationTwoMap" type="com.algorithm.web.model.entity.al.AlFaultPropagationRegister3to4">
+        <id property="id" column="id"/>
+        <result property="modelName" column="model_name"/>
+        <result property="ifPretreatment" column="if_pretreatment"/>
+        <result property="pretreatment" column="pretreatment"/>
+        <result property="sampleType" column="sample_type"/>
+        <result property="sampleSize" column="sample_size"/>
+        <result property="indicatorRequire" column="indicator_require"/>
+        <result property="thresholdType" column="threshold_type"/>
+        <result property="thresholdDescription" column="threshold_description"/>
+        <result property="overrunTimes" column="overrun_times"/>
+    </resultMap>
+
+    <delete id="deletebyname">
+        delete from al_fault_propagation_register3to4 where model_name = #{modelName}
+    </delete>
+
+</mapper>

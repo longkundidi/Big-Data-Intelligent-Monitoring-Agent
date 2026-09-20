@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="sw.ai.mapper.AlStateEvaluationMapper">
+
+    <resultMap id="BaseResultMap" type="sw.ai.domain.AlStateEvaluation">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="modelTypeFirst" column="model_type_first" jdbcType="VARCHAR"/>
+            <result property="modelName" column="model_name" jdbcType="VARCHAR"/>
+            <result property="modelShortName" column="model_short_name" jdbcType="VARCHAR"/>
+            <result property="modelUrl" column="model_url" jdbcType="VARCHAR"/>
+            <result property="modelIcon" column="model_icon" jdbcType="VARCHAR"/>
+            <result property="modelProvider" column="model_provider" jdbcType="VARCHAR"/>
+            <result property="modelObject" column="model_object" jdbcType="VARCHAR"/>
+            <result property="modelType" column="model_type" jdbcType="VARCHAR"/>
+            <result property="modelInvoke" column="model_invoke" jdbcType="VARCHAR"/>
+            <result property="modelFunction" column="model_function" jdbcType="VARCHAR"/>
+            <result property="modelLibrary" column="model_library" jdbcType="VARCHAR"/>
+            <result property="modelCondition" column="model_condition" jdbcType="VARCHAR"/>
+            <result property="modelAdvantage" column="model_advantage" jdbcType="VARCHAR"/>
+            <result property="modelDisadvantage" column="model_disadvantage" jdbcType="VARCHAR"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="editTime" column="edit_time" jdbcType="TIMESTAMP"/>
+            <result property="creator" column="creator" jdbcType="VARCHAR"/>
+            <result property="editor" column="editor" jdbcType="VARCHAR"/>
+            <result property="isCheck" column="is_check" jdbcType="BIGINT"/>
+            <result property="modelNum" column="model_num" jdbcType="BIGINT"/>
+            <result property="input" column="input" jdbcType="VARCHAR"/>
+            <result property="output" column="output" jdbcType="VARCHAR"/>
+            <result property="isjson" column="isjson" jdbcType="BIGINT"/>
+            <result property="userCode" column="user_code" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,model_type_first,
+        model_name,model_short_name,model_url,
+        model_icon,model_provider,model_object,
+        model_type,model_invoke,model_function,
+        model_library,model_condition,model_advantage,
+        model_disadvantage,create_time,edit_time,
+        creator,editor,ischeck,
+        model_num,input,output,
+        isjson,user_code
+    </sql>
+    <select id="getAll" resultType="sw.ai.domain.AlStateEvaluation">
+        SELECT * FROM al_state_evaluation
+    </select>
+</mapper>

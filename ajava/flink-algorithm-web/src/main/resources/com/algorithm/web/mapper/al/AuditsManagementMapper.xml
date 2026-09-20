@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.AuditsManagementMapper">
+
+  <sql id="workflowUnion">
+    SELECT id AS algorithmId,
+           'state_evaluation' AS sourceType,
+           model_name AS alModelName,
+           model_type AS alModelType,
+           model_function AS modelFunction,
+           program_url AS programUrl,
+           model_url AS alModelUrl,
+           create_time AS createTime,
+           COALESCE(model_provider, creator) AS creator,
+           is_check AS isCheck,
+           is_pass AS isPass,
+           is_deployed AS isDeployed
+    FROM al_state_evaluation
+    UNION ALL
+    SELECT id AS algorithmId,
+           'fault_diagnosis' AS sourceType,
+           model_name AS alModelName,
+           model_type AS alModelType,
+           model_function AS modelFunction,
+           program_url AS programUrl,
+           model_url AS alModelUrl,
+           create_time AS createTime,
+           COALESCE(model_provider, creator) AS creator,
+           is_check AS isCheck,
+           is_pass AS isPass,
+           is_deployed AS isDeployed
+    FROM al_fault_diagnosis
+  </sql>
+
+  <!--
+    The source tables use different character sets/collations. MySQL can corrupt
+    Chinese predicates when it pushes a filter from outside this UNION into the
+    individual branches, so apply name/type filters in each source table first.
+  -->
+  <sql id="workflowUnionFiltered">
+    SELECT id AS algorithmId,
+           'state_evaluation' AS sourceType,
+           model_name AS alModelName,
+           model_type AS alModelType,
+           model_function AS modelFunction,
+           program_url AS programUrl,
+           model_url AS alModelUrl,
+           create_time AS createTime,
+           COALESCE(model_provider, creator) AS creator,
+           is_check AS isCheck,
+           is_pass AS isPass,
+           is_deployed AS isDeployed
+    FROM al_state_evaluation
+    <where>
+      <if test="alModelName != null and alModelName != ''">
+        AND model_name LIKE CONCAT('%', #{alModelName}, '%')
+      </if>
+      <if test="alModelType != null and alModelType != ''">
+        AND model_type = #{alModelType}
+      </if>
+    </where>
+    UNION ALL
+    SELECT id AS algorithmId,
+           'fault_diagnosis' AS sourceType,
+           model_name AS alModelName,
+           model_type AS alModelType,
+           model_function AS modelFunction,
+           program_url AS programUrl,
+           model_url AS alModelUrl,
+           create_time AS createTime,
+           COALESCE(model_provider, creator) AS creator,
+           is_check AS isCheck,
+           is_pass AS isPass,
+           is_deployed AS isDeployed
+    FROM al_fault_diagnosis
+    <where>
+      <if test="alModelName != null and alModelName != ''">
+        AND model_name LIKE CONCAT('%', #{alModelName}, '%')
+      </if>
+      <if test="alModelType != null and alModelType != ''">
+        AND model_type = #{alModelType}
+      </if>
+    </where>
+  </sql>
+
+  <select id="getStagePage" resultType="com.algorithm.web.model.entity.al.AuditsManagement">
+    SELECT *
+    FROM (
+      <include refid="workflowUnionFiltered"/>
+    ) workflow
+    <where>
+      <choose>
+        <when test="stage == 'pending_review'">
+          AND isCheck = 1
+        </when>
+        <when test="stage == 'pending_test'">
+          AND isCheck = 0 AND isPass = 2
+        </when>
+        <when test="stage == 'test_failed'">
+          AND isCheck = 0 AND isPass = 1
+        </when>
+        <when test="stage == 'pending_deploy'">
+          AND isCheck = 0 AND isPass = 0 AND isDeployed = 1
+        </when>
+        <when test="stage == 'deployed'">
+          AND isCheck = 0 AND isPass = 0 AND isDeployed = 0
+        </when>
+        <otherwise>
+          AND 1 = 0
+        </otherwise>
+      </choose>
+    </where>
+    ORDER BY createTime DESC, algorithmId DESC
+  </select>
+
+  <select id="getBySourceAndId" resultType="com.algorithm.web.model.entity.al.AuditsManagement">
+    SELECT *
+    FROM (
+      <include refid="workflowUnion"/>
+    ) workflow
+    WHERE sourceType = #{sourceType}
+      AND algorithmId = #{algorithmId}
+    LIMIT 1
+  </select>
+
+  <select id="getStateEvaluationDashboardCounts" resultType="com.algorithm.web.model.vo.AlgorithmDashboardCountVo">
+    SELECT COUNT(*) AS total,
+           COALESCE(SUM(CASE WHEN is_check = 1 THEN 1 ELSE 0 END), 0) AS pendingReview,
+           COALESCE(SUM(CASE WHEN is_check = 0 AND is_pass = 2 THEN 1 ELSE 0 END), 0) AS pendingTest,
+           COALESCE(SUM(CASE WHEN is_check = 0 AND is_pass = 1 THEN 1 ELSE 0 END), 0) AS testFailed,
+           COALESCE(SUM(CASE WHEN is_check = 0 AND is_pass = 0 AND is_deployed = 1 THEN 1 ELSE 0 END), 0) AS pendingDeploy,
+           COALESCE(SUM(CASE WHEN is_check = 0 AND is_pass = 0 AND is_deployed = 0 THEN 1 ELSE 0 END), 0) AS deployed
+    FROM al_state_evaluation
+  </select>
+
+  <select id="getFaultDiagnosisDashboardCounts" resultType="com.algorithm.web.model.vo.AlgorithmDashboardCountVo">
+    SELECT COUNT(*) AS total,
+           COALESCE(SUM(CASE WHEN is_check = 1 THEN 1 ELSE 0 END), 0) AS pendingReview,
+           COALESCE(SUM(CASE WHEN is_check = 0 AND is_pass = 2 THEN 1 ELSE 0 END), 0) AS pendingTest,
+           COALESCE(SUM(CASE WHEN is_check = 0 AND is_pass = 1 THEN 1 ELSE 0 END), 0) AS testFailed,
+           COALESCE(SUM(CASE WHEN is_check = 0 AND is_pass = 0 AND is_deployed = 1 THEN 1 ELSE 0 END), 0) AS pendingDeploy,
+           COALESCE(SUM(CASE WHEN is_check = 0 AND is_pass = 0 AND is_deployed = 0 THEN 1 ELSE 0 END), 0) AS deployed
+    FROM al_fault_diagnosis
+  </select>
+
+  <update id="updateWorkflowStatus" parameterType="com.algorithm.web.model.entity.al.AuditsManagement">
+    <choose>
+      <when test="sourceType == 'data_clean'">
+        UPDATE al_data_clean
+      </when>
+      <when test="sourceType == 'knowledge_extraction'">
+        UPDATE al_knowledge_extraction
+      </when>
+      <when test="sourceType == 'state_evaluation'">
+        UPDATE al_state_evaluation
+      </when>
+      <when test="sourceType == 'fault_diagnosis'">
+        UPDATE al_fault_diagnosis
+      </when>
+    </choose>
+    <set>
+      is_check = #{isCheck},
+      is_pass = #{isPass},
+      is_deployed = #{isDeployed}
+      <if test="alModelUrl != null and alModelUrl != ''">
+        <choose>
+          <when test="sourceType == 'data_clean' or sourceType == 'knowledge_extraction'">
+            , al_url = #{alModelUrl}
+          </when>
+          <otherwise>
+            , model_url = #{alModelUrl}
+          </otherwise>
+        </choose>
+      </if>
+    </set>
+    WHERE id = #{algorithmId}
+  </update>
+
+  <select id="getTestNoPassPage" resultType="com.algorithm.web.model.entity.al.AuditsManagement">
+    SELECT * FROM (
+    SELECT al_name as alModelName, al_type as alModelType, al_type as model_function, create_time, is_pass as isPass, al_num as quote_num, creator FROM al_data_clean
+    <where>
+      <if test="alModelName != null and alModelName != ''">
+        and al_name like concat('%', #{alModelName}, '%')
+      </if>
+      <if test="alModelType != null and alModelType != ''">
+        and al_type like concat('%', #{alModelType}, '%')
+      </if>
+      and is_pass=1
+    </where>
+    UNION
+    SELECT model_name as alModelName, model_type as alModelType, model_function, create_time, is_pass as isPass, model_num as quote_num, model_provider as creator FROM al_state_evaluation
+    <where>
+      <if test="alModelName != null and alModelName != ''">
+        and model_name like concat('%', #{alModelName}, '%')
+      </if>
+      <if test="alModelType != null and alModelType != ''">
+        and model_type like concat('%', #{alModelType}, '%')
+      </if>
+      and is_pass=1
+    </where>
+    UNION
+    SELECT model_name as alModelName, model_type as alModelType, model_function, create_time, is_pass as isPass, model_num as quote_num, model_provider as creator FROM al_fault_diagnosis
+    <where>
+      <if test="alModelName != null and alModelName != ''">
+        and model_name like concat('%', #{alModelName}, '%')
+      </if>
+      <if test="alModelType != null and alModelType != ''">
+        and model_type like concat('%', #{alModelType}, '%')
+      </if>
+      and is_pass=1
+    </where>
+    UNION
+    SELECT al_name as alModelName, al_type as alModelType, al_type as model_function, create_time, is_pass as isPass, al_num as quote_num, creator FROM al_knowledge_extraction
+    <where>
+      <if test="alModelName != null and alModelName != ''">
+        and al_name like concat('%', #{alModelName}, '%')
+      </if>
+      <if test="alModelType != null and alModelType != ''">
+        and al_type like concat('%', #{alModelType}, '%')
+      </if>
+      and is_pass=1
+    </where>
+    ) AuditsManagement
+  </select>
+
+  <select id="getTestNoDeployPage" resultType="com.algorithm.web.model.entity.al.AuditsManagement">
+    SELECT * FROM (
+      SELECT al_name as alModelName, al_type as alModelType, al_type as model_function, create_time, is_pass as isPass,is_deployed as isDeployed, al_num as quote_num, creator FROM al_data_clean
+        <where>
+          <if test="alModelName != null and alModelName != ''">
+            and al_name like concat('%', #{alModelName}, '%')
+          </if>
+          <if test="alModelType != null and alModelType != ''">
+            and al_type like concat('%', #{alModelType}, '%')
+          </if>
+          and is_pass=0 and is_deployed=1
+        </where>
+      UNION
+      SELECT model_name as alModelName, model_type as alModelType, model_function, create_time, is_pass as isPass, is_deployed as isDeployed,model_num as quote_num, model_provider as creator FROM al_state_evaluation
+        <where>
+          <if test="alModelName != null and alModelName != ''">
+            and model_name like concat('%', #{alModelName}, '%')
+          </if>
+          <if test="alModelType != null and alModelType != ''">
+            and model_type like concat('%', #{alModelType}, '%')
+          </if>
+          and is_pass=0 and is_deployed=1
+        </where>
+      UNION
+      SELECT model_name as alModelName, model_type as alModelType, model_function, create_time, is_pass as isPass,is_deployed as isDeployed, model_num as quote_num, model_provider as creator FROM al_fault_diagnosis
+        <where>
+          <if test="alModelName != null and alModelName != ''">
+            and model_name like concat('%', #{alModelName}, '%')
+          </if>
+          <if test="alModelType != null and alModelType != ''">
+            and model_type like concat('%', #{alModelType}, '%')
+          </if>
+          and is_pass=0 and is_deployed=1
+        </where>
+      UNION
+      SELECT al_name as alModelName, al_type as alModelType, al_type as model_function, create_time, is_pass as isPass, is_deployed as isDeployed,al_num as quote_num,creator FROM al_knowledge_extraction
+        <where>
+          <if test="alModelName != null and alModelName != ''">
+            and al_name like concat('%', #{alModelName}, '%')
+          </if>
+          <if test="alModelType != null and alModelType != ''">
+            and al_type like concat('%', #{alModelType}, '%')
+          </if>
+          and is_pass=0 and is_deployed=1
+        </where>
+    ) AuditsManagement
+  </select>
+
+  <select id="getNoTestPage" resultType="com.algorithm.web.model.entity.al.AuditsManagement">
+    SELECT * FROM (
+      SELECT al_name as alModelName, al_type as alModelType, al_type as model_function, create_time, is_pass as isPass, creator,program_url as programUrl FROM al_data_clean
+        <where>
+          <if test="alModelName != null and alModelName != ''">
+            and al_name like concat('%', #{alModelName}, '%')
+          </if>
+          <if test="alModelType != null and alModelType != ''">
+            and al_type like concat('%', #{alModelType}, '%')
+          </if>
+          and is_pass=2
+        </where>
+      UNION
+      SELECT model_name as alModelName, model_type as alModelType, model_function, create_time, is_pass as isPass, model_provider as creator,program_url as programUrl FROM al_state_evaluation
+        <where>
+          <if test="alModelName != null and alModelName != ''">
+            and model_name like concat('%', #{alModelName}, '%')
+          </if>
+          <if test="alModelType != null and alModelType != ''">
+            and model_type like concat('%', #{alModelType}, '%')
+          </if>
+          and is_pass=2
+        </where>
+      UNION
+      SELECT model_name as alModelName, model_type as alModelType, model_function, create_time, is_pass as isPass, model_provider as creator,program_url as programUrl FROM al_fault_diagnosis
+        <where>
+          <if test="alModelName != null and alModelName != ''">
+            and model_name like concat('%', #{alModelName}, '%')
+          </if>
+          <if test="alModelType != null and alModelType != ''">
+            and model_type like concat('%', #{alModelType}, '%')
+          </if>
+          and is_pass=2
+        </where>
+      UNION
+      SELECT al_name as alModelName, al_type as alModelType, al_type as model_function, create_time, is_pass as isPass, creator,program_url as programUrl FROM al_knowledge_extraction
+        <where>
+          <if test="alModelName != null and alModelName != ''">
+            and al_name like concat('%', #{alModelName}, '%')
+          </if>
+          <if test="alModelType != null and alModelType != ''">
+            and al_type like concat('%', #{alModelType}, '%')
+          </if>
+          and is_pass=2
+        </where>
+    ) AuditsManagement
+  </select>
+
+  <select id="getDeployedPage" resultType="com.algorithm.web.model.entity.al.AuditsManagement">
+    SELECT * FROM (
+    SELECT al_name as alModelName, al_type as alModelType, al_type as model_function, create_time, is_pass as isPass,is_deployed as isDeployed, creator FROM al_data_clean
+      <where>
+        <if test="alModelName != null and alModelName != ''">
+          and al_name like concat('%', #{alModelName}, '%')
+        </if>
+        <if test="alModelType != null and alModelType != ''">
+          and al_type like concat('%', #{alModelType}, '%')
+        </if>
+        and is_deployed =0
+      </where>
+    UNION
+    SELECT model_name as alModelName, model_type as alModelType, model_function, create_time,  is_pass as isPass,is_deployed as isDeployed,model_provider as  creator FROM al_state_evaluation
+      <where>
+        <if test="alModelName != null and alModelName != ''">
+          and model_name like concat('%', #{alModelName}, '%')
+        </if>
+        <if test="alModelType != null and alModelType != ''">
+          and model_type like concat('%', #{alModelType}, '%')
+        </if>
+        and is_deployed =0
+      </where>
+    UNION
+    SELECT model_name as alModelName, model_type as alModelType, model_function, create_time,  is_pass as isPass, is_deployed as isDeployed,model_provider as  creator FROM al_fault_diagnosis
+      <where>
+        <if test="alModelName != null and alModelName != ''">
+          and model_name like concat('%', #{alModelName}, '%')
+        </if>
+        <if test="alModelType != null and alModelType != ''">
+          and model_type like concat('%', #{alModelType}, '%')
+        </if>
+        and is_deployed =0
+      </where>
+    UNION
+    SELECT al_name as alModelName, al_type as alModelType, al_type as model_function, create_time,  is_pass as isPass, is_deployed as isDeployed, creator FROM al_knowledge_extraction
+      <where>
+        <if test="alModelName != null and alModelName != ''">
+          and al_name like concat('%', #{alModelName}, '%')
+        </if>
+        <if test="alModelType != null and alModelType != ''">
+          and al_type like concat('%', #{alModelType}, '%')
+        </if>
+        and is_deployed =0
+      </where>
+    ) AuditsManagement
+  </select>
+
+
+
+
+</mapper>

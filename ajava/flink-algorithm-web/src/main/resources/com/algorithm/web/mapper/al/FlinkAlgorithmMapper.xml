@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.FlinkAlgorithmMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="flinkAlgorithmMap" type="com.algorithm.web.model.entity.flink.FlinkAlgorithm">
+        <id column="id" property="id" />
+        <result column="job_name" property="jobName" />
+        <result column="job_id" property="jobId" />
+        <result column="start_time" property="startTime" />
+        <result column="duration" property="duration" />
+        <result column="status" property="status" />
+        <result column="input_topic" property="inputTopic" />
+        <result column="output_topic" property="outputTopic" />
+    </resultMap>
+
+    <select id="getPage" resultMap="flinkAlgorithmMap">
+        select * from job_algorithm
+        <where>
+            <if test="jobId != null and jobId != ''">
+                and job_id = #{jobId}
+            </if>
+            <if test="jobName != null and jobName != ''">
+                and job_name like concat('%', #{jobName}, '%')
+            </if>
+        </where>
+        order by id
+    </select>
+
+</mapper>

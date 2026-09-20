@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sw.model3d.modelBaseTree.mapper.M3ModelBaseTreeMapper">
+
+  <resultMap id="m3ModelBaseTreeMap" type="sw.model3d.modelBaseTree.entity.M3ModelBaseTree">
+    <id property="nodeId" column="node_id"/>
+    <result property="nodeCode" column="node_code"/>
+    <result property="nodeName" column="node_name"/>
+    <result property="nodeNo" column="node_no"/>
+    <result property="nodeSort" column="node_sort"/>
+    <result property="nodeLevel" column="node_level"/>
+    <result property="nodeType" column="node_type"/>
+    <result property="modelFileurl" column="model_fileurl"/>
+    <result property="urlImg" column="url_img"/>
+    <result property="modelSize" column="model_size"/>
+    <result property="modelType" column="model_type"/>
+    <result property="xcoordinate" column="xcoordinate"/>
+    <result property="ycoordinate" column="ycoordinate"/>
+    <result property="zcoordinate" column="zcoordinate"/>
+    <result property="xrotationAngle" column="xrotation_angle"/>
+    <result property="yrotationAngle" column="yrotation_angle"/>
+    <result property="zrotationAngle" column="zrotation_angle"/>
+    <result property="scenePara" column="scene_para"/>
+    <result property="updateTime" column="update_time"/>
+    <result property="memo" column="memo"/>
+    <result property="mbId" column="mb_id"/>
+  </resultMap>
+
+  <select id="getRootNodeByMbId" resultType="sw.model3d.modelBaseTree.entity.M3ModelBaseTreeVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      xcoordinate                    as xcoordinate,
+      ycoordinate                    as ycoordinate,
+      zcoordinate                    as zcoordinate,
+      xrotation_angle                as xrotationAngle,
+      yrotation_angle                as yrotationAngle,
+      zrotation_angle                as zrotationAngle,
+      model_fileurl                  as modelFileurl,
+      model_type                     as modelType,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo
+    FROM m3_model_base_tree
+    WHERE mb_id = #{mbId} AND node_level = 1
+    ORDER BY node_sort asc
+  </select>
+  <select id="getSonNodes" resultType="sw.model3d.modelBaseTree.entity.M3ModelBaseTreeVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      xcoordinate                    as xcoordinate,
+      ycoordinate                    as ycoordinate,
+      zcoordinate                    as zcoordinate,
+      xrotation_angle                as xrotationAngle,
+      yrotation_angle                as yrotationAngle,
+      zrotation_angle                as zrotationAngle,
+      model_fileurl                  as modelFileurl,
+      url_img                        AS urlImg,
+      model_size                     AS modelSize,
+      model_type                     as modelType,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo
+    FROM m3_model_base_tree
+    WHERE node_code REGEXP CONCAT('^',#{nodeCode},'-[0-9]*$')
+    ORDER BY node_sort asc
+  </select>
+
+  <select id="getRootNodes" resultType="sw.model3d.modelBaseTree.entity.M3ModelBaseTreeVo">
+    SELECT node_id                        as id,
+           node_code                       as nodeCode,
+           node_name                      as name,
+           node_type                      as nodeType,
+           IF (node_type = "Leaf" OR node_type = "Root-Leaf", true, false)  as leaf,
+           model_fileurl                  as modelFileurl,
+           url_img                        AS urlImg,
+           model_size                     AS modelSize,
+           model_type                     AS modelType,
+           xcoordinate                    as xcoordinate,
+           ycoordinate                    as ycoordinate,
+           zcoordinate                    as zcoordinate,
+           xrotation_angle                as xrotationAngle,
+           yrotation_angle                as yrotationAngle,
+           zrotation_angle                as zrotationAngle
+    FROM m3_model_base_tree
+    WHERE node_level = 1 ORDER BY node_sort ASC
+  </select>
+
+</mapper>

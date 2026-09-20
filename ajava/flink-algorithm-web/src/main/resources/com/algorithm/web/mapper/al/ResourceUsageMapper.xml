@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.ResourceUsageMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="resourceUsageMap" type="com.algorithm.web.model.entity.al.ResourceUsage">
+        <id column="id" property="id" />
+        <result column="container_id" property="containerId" />
+        <result column="container_name" property="containerName" />
+        <result column="cpu_usage_total" property="cpuUsageTotal" />
+        <result column="system_cpu_usage" property="systemCpuUsage" />
+        <result column="memory_usage" property="memoryUsage" />
+        <result column="memory_limit" property="memoryLimit" />
+        <result column="created_time" property="createdTime" />
+    </resultMap>
+
+
+</mapper>

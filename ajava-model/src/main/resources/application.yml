@@ -1,0 +1,45 @@
+server:
+  port: 7200
+
+spring:
+  application:
+    name: @artifactId@
+  cloud:
+    nacos:
+      username: @nacos.username@
+      password: @nacos.password@
+      discovery:
+        server-addr: ${NACOS_HOST:pig-register}:${NACOS_PORT:8848}
+      config:
+        server-addr: ${spring.cloud.nacos.discovery.server-addr}
+  config:
+    import:
+      - nacos:application-@profiles.active@.yml
+      - nacos:${spring.application.name}-@profiles.active@.yml
+  datasource:  # 示例数据源配置，注意修改也可配置至 nacos
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
+    url: jdbc:mysql://pig-mysql:3306/3d_model?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=Asia/Shanghai
+
+  servlet:
+    multipart: #限制minio文件上传大小
+      enabled: true
+      max-file-size: 300MB
+      max-request-size: 300MB
+
+# spring security 配置
+security:
+  oauth2:
+    client:
+      client-id: pig
+      client-secret: pig
+      scope: server
+
+minio:
+  endpoint: http://minio-server:9000
+  accesskey: minioadmin
+  secretKey: minioadmin
+  modelBucket: modelfile  #模型桶名
+  imageBucket: modelimg   #图片桶名

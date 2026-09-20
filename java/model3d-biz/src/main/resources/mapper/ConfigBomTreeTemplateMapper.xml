@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~
+  ~      Copyright (c) 2018-2025, lengleng All rights reserved.
+  ~
+  ~  Redistribution and use in source and binary forms, with or without
+  ~  modification, are permitted provided that the following conditions are met:
+  ~
+  ~ Redistributions of source code must retain the above copyright notice,
+  ~  this list of conditions and the following disclaimer.
+  ~  Redistributions in binary form must reproduce the above copyright
+  ~  notice, this list of conditions and the following disclaimer in the
+  ~  documentation and/or other materials provided with the distribution.
+  ~  Neither the name of the pig4cloud.com developer nor the names of its
+  ~  contributors may be used to endorse or promote products derived from
+  ~  this software without specific prior written permission.
+  ~  Author: lengleng (wangiegie@gmail.com)
+  ~
+  -->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sw.model3d.configBomTreeTemplate.mapper.ConfigBomTreeTemplateMapper">
+
+
+  <select id="getSonNodes" resultType="sw.model3d.configBomTreeTemplate.entity.vo.ConfigBomTreeTemplateVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo,
+      scada_test_latest_dataset      as ScadaTestLatestDataset,
+      scada_test_previous_dataset    as ScadaTestPreviousDataset,
+      scada_train_latest_dataset     as ScadaTrainLatestDataset,
+      scada_train_previous_dataset   as ScadaTrainPreviousDataset,
+      cms_train_latest_dataset       as CmsTrainLatestDataset,
+      cms_train_previous_dataset     as CmsTrainPreviousDataset,
+      cms_test_latest_dataset        as CmsTestLatestDataset,
+      cms_test_previous_dataset      as CmsTestPreviousDataset,
+      scada_provider                       as ScadaProvider,
+      cms_provider                       as CmsProvider,
+      scada_source                 as scadaSource,
+      cms_source                 as cmsSource,
+      cms_collection_frequency           as cmsCollectionFrequency,
+      scada_collection_frequency           as scadaCollectionFrequency,
+      cms_collection_start_date           as cmsCollectionStartDate,
+      scada_collection_start_date           as scadaCollectionStartDate,
+      cms_collection_end_date        as cmsCollectionEndDate,
+      scada_collection_end_date        as scadaCollectionEndDate,
+      cms_data_type                   as cmsDataType,
+      scada_data_type                   as scadaDataType,
+      cms_field_count                 as cmsFieldCount,
+      scada_field_count                 as scadaFieldCount,
+      cms_storage_size                as cmsStorageSize,
+      scada_storage_size                as sacdaStorageSize,
+      cms_missing_condition           as cmsMissingCondition,
+      scada_missing_condition           as scadaMissingCondition,
+      cms_dataset_name           as cmsDatasetName,
+      scada_dataset_name           as scadaDatasetName
+
+    FROM config_bom_tree_template
+    WHERE node_code REGEXP CONCAT('^',#{nodeCode},'-[0-9]*$') and pro_id=#{proId}
+    ORDER BY swsort asc
+  </select>
+
+  <select id="reqSonNodesByModelId" resultType="sw.model3d.configBomTreeTemplate.entity.vo.ConfigBomTreeTemplateVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo,
+      scada_test_latest_dataset      as ScadaTestLatestDataset,
+      scada_test_previous_dataset    as ScadaTestPreviousDataset,
+      scada_train_latest_dataset     as ScadaTrainLatestDataset,
+      scada_train_previous_dataset   as ScadaTrainPreviousDataset,
+      cms_train_latest_dataset       as CmsTrainLatestDataset,
+      cms_train_previous_dataset     as CmsTrainPreviousDataset,
+      cms_test_latest_dataset        as CmsTestLatestDataset,
+      cms_test_previous_dataset      as CmsTestPreviousDataset,
+      scada_provider                       as ScadaProvider,
+      cms_provider                       as CmsProvider,
+      scada_source                 as scadaSource,
+      cms_source                 as cmsSource,
+      cms_collection_frequency           as cmsCollectionFrequency,
+      scada_collection_frequency           as scadaCollectionFrequency,
+      cms_collection_start_date           as cmsCollectionStartDate,
+      scada_collection_start_date           as scadaCollectionStartDate,
+      cms_collection_end_date        as cmsCollectionEndDate,
+      scada_collection_end_date        as scadaCollectionEndDate,
+      cms_data_type                   as cmsDataType,
+      scada_data_type                   as scadaDataType,
+      cms_field_count                 as cmsFieldCount,
+      scada_field_count                 as scadaFieldCount,
+      cms_storage_size                as cmsStorageSize,
+      scada_storage_size                as sacdaStorageSize,
+      cms_missing_condition           as cmsMissingCondition,
+      scada_missing_condition           as scadaMissingCondition,
+      cms_dataset_name           as cmsDatasetName,
+      scada_dataset_name           as scadaDatasetName
+
+    FROM config_bom_tree_template
+    WHERE node_code REGEXP CONCAT('^',#{nodeCode},'-[0-9]*$') and pro_id=#{modelId}
+    ORDER BY swsort asc
+  </select>
+
+
+  <select id="getTreeNodes" resultType="sw.model3d.configBomTreeTemplate.entity.vo.ConfigBomTreeTemplateVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo,
+      scada_test_latest_dataset      as ScadaTestLatestDataset,
+      scada_test_previous_dataset    as ScadaTestPreviousDataset,
+      scada_train_latest_dataset     as ScadaTrainLatestDataset,
+      scada_train_previous_dataset   as ScadaTrainPreviousDataset,
+      cms_train_latest_dataset       as CmsTrainLatestDataset,
+      cms_train_previous_dataset     as CmsTrainPreviousDataset,
+      cms_test_latest_dataset        as CmsTestLatestDataset,
+      cms_test_previous_dataset      as CmsTestPreviousDataset,
+      scada_provider                       as ScadaProvider,
+      cms_provider                       as CmsProvider,
+      scada_source                 as scadaSource,
+      cms_source                 as cmsSource,
+      cms_collection_frequency           as cmsCollectionFrequency,
+      scada_collection_frequency           as scadaCollectionFrequency,
+      cms_collection_start_date           as cmsCollectionStartDate,
+      scada_collection_start_date           as scadaCollectionStartDate,
+      cms_collection_end_date        as cmsCollectionEndDate,
+      scada_collection_end_date        as scadaCollectionEndDate,
+      cms_data_type                   as cmsDataType,
+      scada_data_type                   as scadaDataType,
+      cms_field_count                 as cmsFieldCount,
+      scada_field_count                 as scadaFieldCount,
+      cms_storage_size                as cmsStorageSize,
+      scada_storage_size                as sacdaStorageSize,
+      cms_missing_condition           as cmsMissingCondition,
+      scada_missing_condition           as scadaMissingCondition,
+      cms_dataset_name           as cmsDatasetName,
+      scada_dataset_name           as scadaDatasetName
+
+    FROM config_bom_tree_template
+    WHERE node_level &lt;= #{nodeLevel} and pro_id=#{proId}
+    ORDER BY swsort asc
+  </select>
+
+  <select id="reqTreeNodesByModelId" resultType="sw.model3d.configBomTreeTemplate.entity.vo.ConfigBomTreeTemplateVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo,
+      scada_test_latest_dataset      as ScadaTestLatestDataset,
+      scada_test_previous_dataset    as ScadaTestPreviousDataset,
+      scada_train_latest_dataset     as ScadaTrainLatestDataset,
+      scada_train_previous_dataset   as ScadaTrainPreviousDataset,
+      cms_train_latest_dataset       as CmsTrainLatestDataset,
+      cms_train_previous_dataset     as CmsTrainPreviousDataset,
+      cms_test_latest_dataset        as CmsTestLatestDataset,
+      cms_test_previous_dataset      as CmsTestPreviousDataset,
+      scada_provider                       as ScadaProvider,
+      cms_provider                       as CmsProvider,
+      scada_source                 as scadaSource,
+      cms_source                 as cmsSource,
+      cms_collection_frequency           as cmsCollectionFrequency,
+      scada_collection_frequency           as scadaCollectionFrequency,
+      cms_collection_start_date           as cmsCollectionStartDate,
+      scada_collection_start_date           as scadaCollectionStartDate,
+      cms_collection_end_date        as cmsCollectionEndDate,
+      scada_collection_end_date        as scadaCollectionEndDate,
+      cms_data_type                   as cmsDataType,
+      scada_data_type                   as scadaDataType,
+      cms_field_count                 as cmsFieldCount,
+      scada_field_count                 as scadaFieldCount,
+      cms_storage_size                as cmsStorageSize,
+      scada_storage_size                as sacdaStorageSize,
+      cms_missing_condition           as cmsMissingCondition,
+      scada_missing_condition           as scadaMissingCondition,
+      cms_dataset_name           as cmsDatasetName,
+      scada_dataset_name           as scadaDatasetName
+
+    FROM config_bom_tree_template
+    WHERE node_level &lt;= #{nodeLevel} and pro_id=#{modelId}
+    ORDER BY swsort asc
+  </select>
+
+  <delete id="delSonNode" >
+    delete
+    from config_bom_tree_template
+    where node_code REGEXP CONCAT('^',#{nodeCode},'-[0-9]*$') and pro_id=#{proId};
+  </delete>
+
+  <select id="getAllSubNodesByNodeCode" resultType="sw.model3d.configBomTreeTemplate.entity.ConfigBomTreeTemplate">
+    SELECT node_code,
+           node_name,
+           node_no,
+           swsort,
+           node_level,
+           node_type,
+           memo
+    FROM config_bom_tree_template
+    WHERE node_code REGEXP CONCAT('^',#{nodeCode}
+        , '-') and pro_id=#{proId}
+    ORDER BY node_code asc
+  </select>
+
+  <!-- XML映射文件 -->
+  <update id="updateDatasetInfo" parameterType="map">
+    UPDATE config_bom_tree_template
+    <set>
+      <!-- 以下列名都用 prefix -->
+      <if test="provider != null">
+        ${prefix}_provider = #{provider},
+      </if>
+      <if test="source != null">
+        ${prefix}_source = #{source},
+      </if>
+      <if test="collectionStartDate != null">
+        ${prefix}_collection_start_date = #{collectionStartDate},
+      </if>
+      <if test="collectionEndDate != null">
+        ${prefix}_collection_end_date   = #{collectionEndDate},
+      </if>
+      <if test="collectionFrequency != null">
+        ${prefix}_collection_frequency  = #{collectionFrequency},
+      </if>
+      <if test="dataType != null">
+        ${prefix}_data_type             = #{dataType},
+      </if>
+      <if test="missingCondition != null">
+        ${prefix}_missing_condition     = #{missingCondition},
+      </if>
+      <if test="storageSize != null">
+        ${prefix}_storage_size          = #{storageSize},
+      </if>
+      <if test="fieldCount != null">
+        ${prefix}_field_count          = #{fieldCount},
+      </if>
+      <if test="datasetName != null">
+        ${prefix}_dataset_name          = #{datasetName}
+      </if>
+    </set>
+    WHERE node_id = #{nodeId}
+  </update>
+
+</mapper>

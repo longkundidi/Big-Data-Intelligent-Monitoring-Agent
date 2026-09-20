@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~
+  ~      Copyright (c) 2018-2025, lengleng All rights reserved.
+  ~
+  ~  Redistribution and use in source and binary forms, with or without
+  ~  modification, are permitted provided that the following conditions are met:
+  ~
+  ~ Redistributions of source code must retain the above copyright notice,
+  ~  this list of conditions and the following disclaimer.
+  ~  Redistributions in binary form must reproduce the above copyright
+  ~  notice, this list of conditions and the following disclaimer in the
+  ~  documentation and/or other materials provided with the distribution.
+  ~  Neither the name of the pig4cloud.com developer nor the names of its
+  ~  contributors may be used to endorse or promote products derived from
+  ~  this software without specific prior written permission.
+  ~  Author: lengleng (wangiegie@gmail.com)
+  ~
+  -->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.AlgorithmConfigurationMapper">
+
+  <resultMap id="algorithmConfigurationMap" type="com.algorithm.web.model.entity.al.AlgorithmConfiguration">
+    <id property="id" column="id"/>
+    <result property="code" column="code"/>
+    <result property="modelName" column="model_name"/>
+    <result property="modelType" column="model_type"/>
+    <result property="sequence" column="sequence"/>
+    <result property="almodelType" column="almodel_type"/>
+    <result property="almodelName" column="almodel_name"/>
+    <result property="almodelShortName" column="almodel_short_name"/>
+    <result property="modelObject" column="model_object"/>
+    <result property="objectId" column="object_id"/>
+    <result property="createTime" column="create_time"/>
+    <result property="pretreatment" column="pretreatment"/>
+    <result property="trainResult" column="train_result"/>
+    <result property="isPass" column="is_pass"/>
+    <result property="isDeployed" column="is_deployed"/>
+    <result property="isPublished" column="is_published"/>
+    <result property="modelNum" column="model_num"/>
+    <result property="isService" column="is_service"/>
+    <result property="almodelIcon" column="almodel_icon"/>
+    <result property="learningRate" column="learning_rate"/>
+    <result property="optimizer" column="optimizer"/>
+    <result property="trainTimes" column="train_times"/>
+    <result property="trainBatch" column="train_batch"/>
+    <result property="learningRate" column="learning_rate"/>
+    <result property="maxLevel" column="max_level"/>
+    <result property="sliceLength" column="slice_length"/>
+    <result property="waveMode" column="wave_mode"/>
+    <result property="wavLet" column="wave_let"/>
+    <result property="n" column="n"/>
+  </resultMap>
+
+  <select id="getShortName" resultType="java.lang.String">
+    <choose>
+      <when test="nodeDtoId.startsWith('dc')">
+        SELECT al_short_name
+        FROM al_data_clean
+        WHERE al_code = #{nodeDtoId}
+      </when>
+      <when test="nodeDtoId.startsWith('se')">
+        SELECT model_short_name
+        FROM al_state_evaluation
+        WHERE al_code = #{nodeDtoId}
+      </when>
+      <when test="nodeDtoId.startsWith('fd')">
+        SELECT model_short_name
+        FROM al_fault_diagnosis
+        WHERE al_code = #{nodeDtoId}
+      </when>
+      <when test="nodeDtoId.startsWith('fe')">
+        SELECT al_short_name
+        FROM al_feature_extraction
+        WHERE al_code = #{nodeDtoId}
+      </when>
+      <otherwise>
+        <!-- 不支持的前缀 -->
+        SELECT 'UNSUPPORTED_PREFIX' AS short_name
+      </otherwise>
+    </choose>
+  </select>
+</mapper>

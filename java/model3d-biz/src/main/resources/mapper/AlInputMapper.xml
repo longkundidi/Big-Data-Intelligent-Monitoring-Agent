@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sw.ai.mapper.AlInputMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="alInputMap" type="sw.ai.domain.AlInput">
+        <id column="id" property="id" />
+        <result column="al_name" property="alName" />
+        <result column="var_id" property="varId" />
+        <result column="al_class" property="alClass" />
+    </resultMap>
+
+
+</mapper>

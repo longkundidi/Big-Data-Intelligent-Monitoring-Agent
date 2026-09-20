@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="sw.model3d.configModel.mapper.ConfigPerceivedTaskMapper">
+    <resultMap id="configPerceivedTaskMap" type="sw.model3d.configModel.entity.ConfigPerceivedTask">
+        <id property="taskId" column="task_id"/>
+        <result property="nodeId" column="node_id"/>
+        <result property="modelId" column="model_id"/>
+        <result property="proId" column="pro_id"/>
+        <result property="relatedVar" column="related_var"/>
+        <result property="modelName" column="model_name"/>
+        <result property="timeWindow" column="time_window"/>
+        <result property="modelType" column="model_type"/>
+        <result property="algoId" column="algo_id"/>
+        <result property="algoShortname" column="algo_shortname"/>
+        <result property="variableNum" column="variable_num"/>
+        <result property="dataDimension" column="data_dimension"/>
+        <result property="serviceType" column="service_type"/>
+        <result property="assessType" column="assess_type"/>
+        <result property="indexRequirement" column="index_requirement"/>
+        <result property="assessIndex" column="assess_index"/>
+        <result property="thresholdType" column="threshold_type"/>
+        <result property="limitNumber" column="limit_number"/>
+        <result property="failureCriterion" column="failure_criterion"/>
+        <result property="trendPrediction" column="trend_prediction"/>
+        <result property="resultLimitNum" column="result_limit_num"/>
+        <result property="intro" column="intro"/>
+        <result property="isDefaultModel" column="is_default_model"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <select id="selectDistinctNodeIds" resultType="String">
+        SELECT DISTINCT node_id FROM config_perceived_task
+    </select>
+
+    <select id="selectRunningNodeIdsByProIds" resultType="String">
+        SELECT DISTINCT node_id
+        FROM config_perceived_task
+        WHERE status = 1
+        AND pro_id IN
+        <foreach collection="proIds" item="proId" open="(" separator="," close=")">
+            #{proId}
+        </foreach>
+    </select>
+
+    <select id="selectNodeIdsByTaskIds" resultType="String">
+        SELECT DISTINCT node_id
+        FROM config_perceived_task
+        WHERE task_id IN
+        <foreach collection="taskIds" item="taskId" open="(" separator="," close=")">
+            #{taskId}
+        </foreach>
+    </select>
+</mapper>

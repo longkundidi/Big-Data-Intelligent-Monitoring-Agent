@@ -1,0 +1,7 @@
+ALTER TABLE `al_state_evaluation`
+  MODIFY COLUMN `input` LONGTEXT NULL,
+  MODIFY COLUMN `output` LONGTEXT NULL;
+
+ALTER TABLE `al_fault_diagnosis`
+  MODIFY COLUMN `input` LONGTEXT NULL,
+  MODIFY COLUMN `output` LONGTEXT NULL;

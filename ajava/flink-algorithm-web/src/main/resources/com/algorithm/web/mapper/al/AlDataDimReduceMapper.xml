@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.AlDataDimReduceMapper">
+
+    <resultMap id="alAlgorithmMap" type="com.algorithm.web.model.entity.al.AlDataDimReduce">
+        <id property="id" column="id"/>
+        <result property="alCode" column="al_code"/>
+        <result property="alName" column="al_name"/>
+        <result property="alShortName" column="al_short_name"/>
+        <result property="alType" column="al_type"/>
+        <result property="alBrief" column="al_brief"/>
+        <result property="alSuit" column="al_suit"/>
+        <result property="IconUrl" column="icon_url"/>
+        <result property="alUrl" column="al_url"/>
+        <result property="createTime" column="create_time"/>
+        <result property="editTime" column="edit_time"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="creator" column="creator"/>
+        <result property="editor" column="editor"/>
+        <result property="jobName" column="job_name"/>
+        <result property="input" column="input"/>
+        <result property="output" column="output"/>
+        <result property="alNum" column="al_num"/>
+        <result property="isPass" column="ispass"/>
+        <result property="programUrl" column="program_url"/>
+        <result property="deployInput" column="deploy_input"/>
+        <result property="deployOutput" column="deploy_output"/>
+        <result property="deployRequire" column="deploy_require"/>
+        <result property="invocation" column="invocation"/>
+        <result property="isService" column="is_service"/>
+        <result property="backupAlUrl" column="backup_al_url"/>
+        <result property="jarSize" column="jar_size"/>
+        <result property="runSize" column="run_size"/>
+
+    </resultMap>
+
+    <select id="exitName" resultType="java.lang.String">
+        select al_name from al_data_dim_reduce where al_name = #{name}
+    </select>
+
+    <select id="selectClassPage" resultType="com.algorithm.web.model.entity.al.AlDataDimReduce">
+        SELECT * FROM al_data_dim_reduce WHERE al_type = #{alType}
+    </select>
+
+    <select id="selectClassPagenull" resultType="com.algorithm.web.model.entity.al.AlDataDimReduce">
+        SELECT * FROM al_data_dim_reduce WHERE a.al_type = '线性降维算法' or  a.al_type = '非线性降维算法'
+    </select>
+
+    <select id="getbyname" resultType="com.algorithm.web.model.entity.al.AlDataDimReduce">
+        SELECT * FROM al_data_dim_reduce WHERE al_name = #{alName}
+    </select>
+
+    <select id="gettype1" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '数据去重';
+    </select>
+
+    <select id="gettype2" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '缺失值填充';
+    </select>
+
+    <select id="gettype3" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '异常值检测';
+    </select>
+
+    <select id="gettype4" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '数据标准化';
+    </select>
+
+    <select id="gettype5" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '关联模式挖掘';
+    </select>
+
+    <select id="gettype6" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '分类算法';
+    </select>
+
+    <select id="gettype7" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '聚类算法';
+    </select>
+
+    <select id="gettype8" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '回归分析算法';
+    </select>
+
+    <select id="gettype9" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '命名实体识别模型';
+    </select>
+
+    <select id="gettype10" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '分词模型';
+    </select>
+
+    <select id="gettype11" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '线性降维';
+    </select>
+
+    <select id="gettype12" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '非线性降维';
+    </select>
+
+    <select id="gettype13" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '聚类';
+    </select>
+
+    <select id="gettype14" resultType="int">
+        SELECT COUNT(*) FROM al_data_dim_reduce WHERE al_type = '关联规则挖掘';
+    </select>
+
+    <select id="getByNameLike" parameterType="string" resultType="com.algorithm.web.model.entity.al.AlDataDimReduce">
+        SELECT * FROM al_data_dim_reduce WHERE al_name LIKE CONCAT('%', #{alName}, '%')
+    </select>
+</mapper>

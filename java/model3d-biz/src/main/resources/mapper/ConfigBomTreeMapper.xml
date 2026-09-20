@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~
+  ~      Copyright (c) 2018-2025, lengleng All rights reserved.
+  ~
+  ~  Redistribution and use in source and binary forms, with or without
+  ~  modification, are permitted provided that the following conditions are met:
+  ~
+  ~ Redistributions of source code must retain the above copyright notice,
+  ~  this list of conditions and the following disclaimer.
+  ~  Redistributions in binary form must reproduce the above copyright
+  ~  notice, this list of conditions and the following disclaimer in the
+  ~  documentation and/or other materials provided with the distribution.
+  ~  Neither the name of the pig4cloud.com developer nor the names of its
+  ~  contributors may be used to endorse or promote products derived from
+  ~  this software without specific prior written permission.
+  ~  Author: lengleng (wangiegie@gmail.com)
+  ~
+  -->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sw.model3d.configModel.mapper.ConfigBomTreeMapper">
+
+  <resultMap id="configBomTreeMap" type="sw.model3d.configModel.entity.ConfigBomTree">
+    <id property="nodeId" column="node_id"/>
+    <result property="nodeCode" column="node_code"/>
+    <result property="turbineCode" column="turbine_code"/>
+    <result property="nodeName" column="node_name"/>
+    <result property="nodeNo" column="node_no"/>
+    <result property="swsort" column="swsort"/>
+    <result property="nodeLevel" column="node_level"/>
+    <result property="nodeType" column="node_type"/>
+    <result property="updateTime" column="update_time"/>
+    <result property="memo" column="memo"/>
+    <result property="proId" column="pro_id"/>
+    <result property="isBomPassed" column="is_bom_passed"/>
+    <result property="isValPassed" column="is_val_passed"/>
+    <result property="isPerceivedTaskCreate" column="is_perceived_task_create"/>
+  </resultMap>
+
+  <select id="getComponentNodes" resultType="sw.model3d.configModel.entity.vo.ConfigBomTreeVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo,
+      turbine_code                   as turbineCode
+    FROM config_bom_tree
+    WHERE node_level &lt;= #{nodeLevel} and pro_id=#{proId} and is_bom_passed = 1
+    <if test="turbineCodes != null and turbineCodes.size() > 0">
+      AND turbine_code IN
+      <foreach item="code" collection="turbineCodes" open="(" separator="," close=")">
+        #{code}
+      </foreach>
+    </if>
+    ORDER BY swsort asc
+  </select>
+
+  <select id="getBomSons" resultType="sw.model3d.configModel.entity.vo.ConfigBomTreeVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo,
+      turbine_code                   as turbineCode
+    FROM config_bom_tree
+    WHERE node_code REGEXP CONCAT('^',#{nodeCode},'-[0-9]*$')  and turbine_code = #{turbineCode} and is_bom_passed = 1
+    ORDER BY swsort asc
+  </select>
+
+  <select id="getNodeVobyCode" resultType="sw.utils.entity.TreeEntity">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf
+    FROM config_bom_tree
+    WHERE node_code = #{nodeCode} AND turbine_code =#{turbineCode} AND pro_id = #{proId}
+    ORDER BY swsort asc
+  </select>
+
+  <select id="getBomList" resultType="sw.utils.entity.TreeEntity">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf
+    FROM config_bom_tree
+    WHERE turbine_code =#{turbineCode} AND pro_id = #{proId}
+    ORDER BY swsort asc
+  </select>
+
+
+  <select id="getSonNodes" resultType="sw.model3d.configModel.entity.vo.ConfigBomTreeVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo,
+      turbine_code                   as turbineCode,
+      production_date                AS productionDate,
+      purchase_date                  AS purchaseDate,
+      installation_date              AS installationDate,
+      installation_leader           AS installationLeader,
+      responsible_person             AS responsiblePerson,
+      component_model                AS componentModel,
+      manufacturer                   AS manufacturer,
+      maintenance_record             AS maintenanceRecord,
+      maintenance_person             AS maintenancePerson,
+      fault_record                   AS faultRecord,
+      fault_reporter                 AS faultReporter,
+      replacement_record             AS replacementRecord,
+      replacement_person             AS replacementPerson
+    FROM config_bom_tree
+    WHERE node_code REGEXP CONCAT('^',#{nodeCode},'-[0-9]*$')  and turbine_code=#{turbineCode}
+    ORDER BY swsort asc
+  </select>
+
+
+  <select id="getTreeNodes" resultType="sw.model3d.configModel.entity.vo.ConfigBomTreeVo">
+    SELECT
+      node_id                        as id,
+      node_code                      as nodeCode,
+      node_name                      as name,
+      node_type                      as nodeType,
+      node_level                     as nodeLevel,
+      IF(STRCMP(node_type,"Leaf") = 0 OR STRCMP(node_type,"Root-Leaf") = 0, true , false )   as leaf,
+      update_time                    as updateTime,
+      memo                           as memo,
+      turbine_code                   as turbineCode,
+      production_date                AS productionDate,
+      purchase_date                  AS purchaseDate,
+      installation_date              AS installationDate,
+      installation_leader           AS installationLeader,
+      responsible_person             AS responsiblePerson,
+      component_model                AS componentModel,
+      manufacturer                   AS manufacturer,
+      maintenance_record             AS maintenanceRecord,
+      maintenance_person             AS maintenancePerson,
+      fault_record                   AS faultRecord,
+      fault_reporter                 AS faultReporter,
+      replacement_record             AS replacementRecord,
+      replacement_person             AS replacementPerson
+    FROM config_bom_tree
+    WHERE node_level &lt;= #{nodeLevel} and pro_id=#{proId}
+    ORDER BY swsort asc
+  </select>
+
+
+  <select id="getAllSubNodesByNodeCode" resultType="sw.model3d.configModel.entity.ConfigBomTree">
+    SELECT node_code,
+           node_name,
+           node_no,
+           swsort,
+           node_level,
+           node_type,
+           memo
+    FROM config_bom_tree
+    WHERE node_code REGEXP CONCAT('^',#{nodeCode}
+        , '-') and turbine_code=#{turbineCode}
+    ORDER BY node_code asc
+  </select>
+
+  <select id="selectTurbineCodesByNodeIds" resultType="String">
+    SELECT turbine_code FROM config_bom_tree WHERE node_id IN
+    <foreach collection="nodeIds" item="nodeId" open="(" separator="," close=")">
+      #{nodeId}
+    </foreach>
+  </select>
+
+  <select id="getRootNodes" resultType="map">
+    SELECT pro_id, node_name
+    FROM config_bom_tree
+    WHERE node_type = 'Root'
+    AND pro_id IN
+    <foreach collection="proIds" item="proId" open="(" separator="," close=")">
+      #{proId}
+    </foreach>
+  </select>
+</mapper>

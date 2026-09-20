@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~
+  ~      Copyright (c) 2018-2025, lengleng All rights reserved.
+  ~
+  ~  Redistribution and use in source and binary forms, with or without
+  ~  modification, are permitted provided that the following conditions are met:
+  ~
+  ~ Redistributions of source code must retain the above copyright notice,
+  ~  this list of conditions and the following disclaimer.
+  ~  Redistributions in binary form must reproduce the above copyright
+  ~  notice, this list of conditions and the following disclaimer in the
+  ~  documentation and/or other materials provided with the distribution.
+  ~  Neither the name of the pig4cloud.com developer nor the names of its
+  ~  contributors may be used to endorse or promote products derived from
+  ~  this software without specific prior written permission.
+  ~  Author: lengleng (wangiegie@gmail.com)
+  ~
+  -->
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sw.model3d.configModel.mapper.ConfigModelMapper">
+
+  <resultMap id="configModelMap" type="sw.model3d.configModel.entity.ConfigModel">
+    <id property="modelId" column="model_id"/>
+    <result property="modelName" column="model_name"/>
+    <result property="timeWindow" column="time_window"/>
+    <result property="modelType" column="model_type"/>
+    <result property="algoId" column="algo_id"/>
+    <result property="serviceType" column="service_type"/>
+    <result property="assessType" column="assess_type"/>
+    <result property="indexRequirement" column="index_requirement"/>
+    <result property="assessIndex" column="assess_index"/>
+    <result property="thresholdType" column="threshold_type"/>
+    <result property="limitNumber" column="limit_number"/>
+    <result property="failureCriterion" column="failure_criterion"/>
+    <result property="trendPrediction" column="trend_prediction"/>
+    <result property="resultLimitNum" column="result_limit_num"/>
+    <result property="intro" column="intro"/>
+    <result property="nodeId" column="node_id"/>
+    <result property="isService" column="is_service"/>
+  </resultMap>
+</mapper>

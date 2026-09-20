@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.AlFaultDiagnosisRegister1to2Mapper">
+
+  <resultMap id="alFaultDiagnosisOneMap" type="com.algorithm.web.model.entity.al.AlFaultDiagnosisRegister1to2">
+    <id property="id" column="id"/>
+    <result property="modelName" column="model_name"/>
+    <result property="modelFramework" column="model_framework"/>
+    <result property="device" column="device"/>
+    <result property="ifTrain" column="if_train"/>
+    <result property="ifTest" column="if_test"/>
+    <result property="trainDataset" column="train_dataset"/>
+    <result property="testDataset" column="test_dataset"/>
+    <result property="ifPretreatment" column="if_pretreatment"/>
+    <result property="pretreatment" column="pretreatment"/>
+    <result property="sampleType" column="sample_type"/>
+    <result property="sampleSize" column="sample_size"/>
+    <result property="trainTimes" column="train_times"/>
+    <result property="trainBatch" column="train_batch"/>
+    <result property="lossFunction" column="loss_function"/>
+    <result property="regularization" column="regularization"/>
+    <result property="learningRate" column="learning_rate"/>
+    <result property="optimizer" column="optimizer"/>
+    <result property="trainResults" column="train_results"/>
+    <result property="testResults" column="test_results"/>
+    <result property="metrics" column="metrics"/>
+  </resultMap>
+
+  <delete id="deletebyname">
+    delete from al_fault_diagnosis_register1to2 where model_name = #{modelName}
+  </delete>
+
+  <select id="selectClassPage" resultType="com.algorithm.web.model.vo.AlFaultDiagnosisRegister1to2Vo" >
+    select a.*,b.model_url,b.jar_size,b.run_size from al_fault_diagnosis_register1to2  a  join al_fault_diagnosis b on a.model_name=b.model_name where a.model_name=#{modelName}
+  </select>
+
+</mapper>

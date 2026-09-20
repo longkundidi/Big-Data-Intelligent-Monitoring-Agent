@@ -1,0 +1,36 @@
+/*      修改对话框窗体样式     */
+::v-deep{
+  .el-input-number .el-input__inner{        /*    数字类字段居左显示   */
+    text-align: left;
+  }
+  .el-dialog__header{     /*   标题栏背景色   */
+    padding: 10px;
+    margin-right: -1px;    /*    保持窗体与标题栏宽度一致    */
+    background-image: linear-gradient(to bottom,#1e90ff 0, #00ffff 100%);     /*    修改标题色   */
+  }
+  .el-dialog__title{            /*  标题栏字体样式   */
+    font-size: 16px;
+    font-weight: bold;
+  }
+  .el-dialog__headerbtn{        /*  关闭按钮样式   */
+    top: 17px;
+    right: 10px;
+    width: 45px;
+    height: 45px;
+    /*background-image: linear-gradient(to bottom,#1e90ff 0, #00ffff 100%);*/
+  }
+  .el-dialog__headerbtn .el-dialog__close{      /*  按钮颜色  */
+    color: whitesmoke;
+  }
+  .el-dialog__headerbtn .el-dialog__close:hover{    /*  鼠标滑过按钮颜色  */
+    color: red;
+  }
+  .el-dialog__body{         /*      窗体内容区     */
+    padding-top: 0px;
+    padding-bottom: 15px;
+  }
+}
+
+.content{
+  margin-top: 20px;
+}

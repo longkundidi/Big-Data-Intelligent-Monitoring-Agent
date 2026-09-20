@@ -1,0 +1,101 @@
+server:
+  port: 8180
+  servlet:
+    encoding:
+      force: true
+spring:
+  application:
+    name: lk
+  cloud:
+    inetutils:
+      preferred-networks:
+        - 192.168
+      ignored-interfaces:
+        - VMware.*
+        - VirtualBox.*
+    nacos:
+      username: nacos
+      password: nacos
+      discovery:
+        server-addr: pig-register:8848
+      config:
+        server-addr: pig-register:8848
+  config:
+    import:
+      - nacos:application-dev.yml
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    druid:
+      connectionProperties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
+      filters: stat,wall,slf4j
+      initial-size: 5
+      maxActive: 20
+      maxPoolPreparedStatementPerConnectionSize: 20
+      maxWait: 60000
+      min-idle: 5
+      minEvictableIdleTimeMillis: 300000
+      poolPreparedStatements: true
+      stat-view-servlet:
+#        login-password: 123456
+#        login-username: admin
+        reset-enable: false
+        url-pattern: /druid/*
+      testOnBorrow: false
+      testOnReturn: false
+      testWhileIdle: true
+      timeBetweenEvictionRunsMillis: 60000
+      validationQuery: SELECT 1 FROM DUAL
+      web-stat-filter:
+        enabled: true
+        exclusions: '*.js,*.gif,*.jpg,*.bmp,*.png,*.css,*.ico,/druid/*,/log/*'
+        url-pattern: /*
+    password: root
+#    password: 123456
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:mysql://192.168.65.237:3306/new_algorithom_Repository?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+  devtools:
+    livereload:
+      enabled: true
+  mvc:
+    static-path-pattern: /static/**
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      max-file-size: 1024MB
+      max-request-size: 1024MB
+influxdb:
+  bucket: elevate
+  org: bigdata
+#  token: I6j8FKO-1xLCeYTtbjruXGmGu6bCYepnl0zfFDwE5pf8iO7pOpO2daajx3C3EKIu0fvHIyGcSQJd70rajF5qHg==
+  token: b-6wkycz9XMJJG_Ad49aYUk_KicySSGVSbSaa8RYp6EyObz961qKw0zH4Bp8D6MMT34vzm2a6JJ-PKg7uBOQUA==
+#  url: http://192.168.20.104
+  url: http://192.168.16.219:8086
+
+elevator:
+  diagnosis:
+    max-time-difference-minutes: 3
+
+flink:
+  rest:
+    api:
+      url: http://192.168.16.219:8000
+
+docker:
+  host: http://192.168.16.219:2375
+
+logging:
+  config: classpath:logging/logback-${spring.profiles.active}.xml
+minio:
+  accessKey: I3OwKblOgaZrJNgD
+  bucketName: bigdata
+  endpoint: http://192.168.16.219:9000
+  secretKey: 7x7JeHolk3N6wXrneIN3b5I6x9i82NAS
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+mybatis-plus:
+  configuration:
+    cache-enabled: false
+    jdbc-type-for-null: 'null'
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

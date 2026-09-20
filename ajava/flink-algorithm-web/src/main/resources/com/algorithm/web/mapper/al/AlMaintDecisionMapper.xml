@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.AlMaintDecisionMapper">
+
+    <resultMap id="alMaintDecisionBaseMap" type="com.algorithm.web.model.entity.al.AlMaintDecision">
+        <id property="id" column="id"/>
+        <result property="alCode" column="al_code"/>
+        <result property="modelTypeFirst" column="model_type_first"/>
+        <result property="modelName" column="model_name"/>
+        <result property="modelIcon" column="model_icon"/>
+        <result property="programUrl" column="program_url"/>
+        <result property="modelUrl" column="model_url"/>
+        <result property="modelProvider" column="model_provider"/>
+        <result property="modelObject" column="model_object"/>
+        <result property="objectId" column="object_id"/>
+        <result property="modelType" column="model_type"/>
+        <result property="modelInvoke" column="model_invoke"/>
+        <result property="modelFunction" column="model_function"/>
+        <result property="modelLibrary" column="model_library"/>
+        <result property="modelCondition" column="model_condition"/>
+        <result property="modelAdvantage" column="model_advantage"/>
+        <result property="modelDisadvantage" column="model_disadvantage"/>
+        <result property="deployInput" column="deploy_input"/>
+        <result property="deployOutput" column="deploy_output"/>
+        <result property="deployRequire" column="deploy_require"/>
+        <result property="createTime" column="create_time"/>
+        <result property="editTime" column="edit_time"/>
+        <result property="creator" column="creator"/>
+        <result property="editor" column="editor"/>
+        <result property="modelNum" column="model_num"/>
+        <result property="input" column="input"/>
+        <result property="output" column="output"/>
+        <result property="isJson" column="isjson"/>
+        <result property="userCode" column="user_code"/>
+        <result property="isService" column="is_service"/>
+        <result property="backupModelUrl" column="backup_model_url"/>
+        <result property="jarSize" column="jar_size"/>
+        <result property="runSize" column="run_size"/>
+    </resultMap>
+
+    <select id="getnamebyid" resultType="java.lang.String">
+        select model_name from al_maint_decision where id = #{id}
+    </select>
+
+    <select id="getbyname" resultType="com.algorithm.web.model.entity.al.AlMaintDecision">
+        select * from al_maint_decision where model_name = #{modelName}
+    </select>
+
+    <select id="getbyId" resultType="com.algorithm.web.model.entity.al.AlMaintDecision">
+        select * from al_maint_decision where id  = #{id}
+    </select>
+
+    <select id="selectClassPage" resultType="com.algorithm.web.model.entity.al.AlMaintDecision">
+        SELECT * FROM al_maint_decision WHERE model_type_first = #{modelTypeFirst} AND model_function = #{modelFunction}
+    </select>
+
+    <select id="selectClassPagenull" resultType="com.algorithm.web.model.entity.al.AlMaintDecision">
+        SELECT * FROM al_maint_decision WHERE model_type_first = #{modelTypeFirst}
+    </select>
+
+    <select id="selectObj" resultType="com.algorithm.web.model.entity.al.AlMaintDecision">
+        SELECT * FROM al_maint_decision WHERE model_type_first = #{modelTypeFirst} AND model_function = #{modelFunction} AND model_object LIKE CONCAT('%',#{modelObject},'%')
+    </select>
+
+    <select id="selectName" resultType="com.algorithm.web.model.entity.al.AlMaintDecision">
+        SELECT * FROM al_maint_decision WHERE model_type_first = #{modelTypeFirst} AND model_function = #{modelFunction} AND model_name LIKE CONCAT('%',#{modelName},'%')
+    </select>
+
+    <select id="exitName" resultType="java.lang.String">
+        select model_name from al_maint_decision where model_name = #{name}
+    </select>
+
+    <select id="getByNameLike" parameterType="string" resultType="com.algorithm.web.model.entity.al.AlMaintDecision">
+        SELECT * FROM al_maint_decision WHERE model_name LIKE CONCAT('%', #{modelName}, '%')
+    </select>
+
+</mapper>

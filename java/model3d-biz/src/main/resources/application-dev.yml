@@ -1,0 +1,6 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        #        替换本地IP
+        ip: 192.168.66.47

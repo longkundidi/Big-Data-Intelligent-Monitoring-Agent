@@ -1,0 +1,4 @@
+spring:
+  autoconfigure:
+    exclude:
+      - com.pig4cloud.pig.common.log.LogAutoConfiguration

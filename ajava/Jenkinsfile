@@ -1,0 +1,44 @@
+pipeline {
+    agent any
+
+    environment {
+        GIT_REPO_URL = 'http://192.168.16.211:8929/driverchains/vue'
+        GIT_BRANCH = 'main'
+        IMAGE_NAME = '192.168.16.211/driverchains/driverchainsf'
+        IMAGE_TAG = 'main'
+        HARBOR_URL = 'http://192.168.16.211'
+        HARBOR_REGISTRY_CREDENTIALS = 'harbor-admin'
+        SSH_CREDENTIALS = 'server_root'
+        SSH_SERVER = '192.168.16.216'
+    }
+
+    stages {
+
+        stage('Build and Push Docker Image') {
+            steps {
+                script {
+                    docker.withRegistry(env.HARBOR_URL, env.HARBOR_REGISTRY_CREDENTIALS) {
+                        def dockerImage = docker.build(env.IMAGE_NAME)
+                        dockerImage.push(env.IMAGE_TAG)
+                    }
+                }
+            }
+        }
+
+        stage('Deploy via SSH') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: env.SSH_CREDENTIALS, passwordVariable: 'password', usernameVariable: 'username')]) {
+                        def remote = [:]
+                        remote.name = 'remote'
+                        remote.host = env.SSH_SERVER
+                        remote.user = username
+                        remote.password = password
+                        remote.allowAnyHosts = true
+                        sshCommand remote: remote, command: "docker compose -f /usr/local/software/docker_image/driverchain/docker-compose.yaml up --build driverchainsf -d"
+                    }
+                }
+            }
+        }
+    }
+}

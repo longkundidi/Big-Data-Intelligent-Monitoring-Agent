@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.algorithm.web.mapper.al.AlTaskMapper">
+
+    <resultMap id="alTaskMap" type="com.algorithm.web.model.entity.al.AlTask">
+        <id property="id" column="id"/>
+        <result property="taskId" column="task_id"/>
+        <result property="taskState" column="task_state"/>
+        <result property="alId" column="al_id"/>
+        <result property="taskMsg" column="task_msg"/>
+        <result property="taskResult" column="task_result"/>
+        <result property="createTime" column="create_time"/>
+        <result property="editTime" column="edit_time"/>
+        <result property="isDeleted" column="is_deleted"/>
+        <result property="creator" column="creator"/>
+        <result property="editor" column="editor"/>
+        <result property="alClass" column="al_class"/>
+        <result property="useCase" column="use_case"/>
+        <result property="serverUrl" column="server_url"/>
+  </resultMap>
+
+    <select id="selectClassPage" resultType="com.algorithm.web.model.entity.al.AlTask">
+    SELECT * FROM (
+                    SELECT a.*,b.al_name as al_name FROM al_task a
+                                                           LEFT JOIN al_data_clean b on a.al_id = b.id
+                    UNION ALL
+                    SELECT a.*,c.al_name as al_name FROM al_task a
+                                                              LEFT JOIN al_knowledge_extraction c on a.al_id = c.id
+                    UNION ALL
+                    SELECT a.*,d.model_name as al_name FROM al_task a
+                                                                LEFT JOIN al_fault_diagnosis d on a.al_id = d.id
+                    UNION ALL
+                    SELECT a.*,e.model_name as al_name FROM al_task a
+                                                                LEFT JOIN al_state_evaluation e on a.al_id = e.id
+                  ) t WHERE t.al_name!=''
+    ORDER BY t.id DESC
+  </select>
+
+    <select id="searchTasks" resultType="com.algorithm.web.model.entity.al.AlTask">
+        WITH RankedTasks AS (
+        SELECT
+        a.*,
+        <choose>
+            <when test="alClass == 'alDataCleaning'">
+                CASE WHEN b.id IS NOT NULL THEN b.al_name ELSE NULL END AS al_name
+            </when>
+            <when test="alClass == 'alKnowledgeExtraction'">
+                CASE WHEN c.id IS NOT NULL THEN c.al_name ELSE NULL END AS al_name
+            </when>
+            <when test="alClass == 'alFaultDiagnosis'">
+                CASE WHEN d.id IS NOT NULL THEN d.model_name ELSE NULL END AS al_name
+            </when>
+            <when test="alClass == 'alStateEvaluation'">
+                CASE WHEN e.id IS NOT NULL THEN e.model_name ELSE NULL END AS al_name
+            </when>
+            <when test="alClass == 'autoTest'">
+                CASE WHEN e.id IS NOT NULL THEN e.model_name ELSE NULL END AS al_name
+            </when>
+        </choose>,
+        ROW_NUMBER() OVER (
+        PARTITION BY a.al_id, a.al_class
+        ORDER BY a.start_time DESC
+        ) as rn
+        FROM
+        al_task a
+        <if test="alClass == 'alDataCleaning'">
+            LEFT JOIN al_data_clean b ON a.al_id = b.id
+        </if>
+        <if test="alClass == 'alKnowledgeExtraction'">
+            LEFT JOIN al_knowledge_extraction c ON a.al_id = c.id
+        </if>
+        <if test="alClass == 'alFaultDiagnosis'">
+            LEFT JOIN al_fault_diagnosis d ON a.al_id = d.id
+        </if>
+        <if test="alClass == 'alStateEvaluation'">
+            LEFT JOIN al_state_evaluation e ON a.al_id = e.id
+        </if>
+        )
+        SELECT
+        *
+        FROM
+        RankedTasks
+        WHERE
+        rn = 1 AND al_id = #{alId} AND al_class = #{alClass}
+    </select>
+
+    <select id="getAutoTest" resultType="com.algorithm.web.model.entity.al.AlTask">
+        SELECT
+            t.*, '算法审核' as al_name
+        FROM (
+                 SELECT
+                     a.*,
+                     ROW_NUMBER() OVER (ORDER BY a.start_time DESC) as rn
+                 FROM al_task a
+             ) t
+        WHERE t.rn = 1 AND t.al_class = 'autoTest';
+    </select>
+
+    <select id="selectAll" resultType="com.algorithm.web.model.entity.al.AlTask">
+        SELECT * FROM (
+                          SELECT a.*, b.al_name as al_name
+                          FROM al_task a
+                                   LEFT JOIN al_data_clean b ON a.al_id = b.id
+                          WHERE a.al_class = 'alDataCleaning'  AND a.server_url=#{serverUrl}
+
+                          UNION
+
+                          SELECT a.*, c.al_name as al_name
+                          FROM al_task a
+                                   LEFT JOIN al_knowledge_extraction c ON a.al_id = c.id
+                          WHERE a.al_class = 'alKnowledgeExtraction' AND a.server_url=#{serverUrl}
+
+                          UNION
+
+                          SELECT a.*, d.model_name as al_name
+                          FROM al_task a
+                                   LEFT JOIN al_fault_diagnosis d ON a.al_id = d.id
+                          WHERE a.al_class = 'alFaultDiagnosis' AND a.server_url=#{serverUrl}
+
+                          UNION
+
+                          SELECT a.*, e.model_name as al_name
+                          FROM al_task a
+                                   LEFT JOIN al_state_evaluation e ON a.al_id = e.id
+                          WHERE a.al_class = 'alStateEvaluation' AND a.server_url=#{serverUrl}
+
+                          UNION
+
+                          SELECT a.*, '算法审核' as al_name
+                          FROM al_task a
+                          WHERE a.al_class = 'autoTest' AND a.server_url=#{serverUrl}
+
+                          UNION
+                          SELECT a.*, '自动获取评价指标' as al_name
+                          FROM al_task a
+                          WHERE a.al_class = 'autoGetMetrics' AND a.server_url=#{serverUrl}
+
+                          UNION
+                          SELECT a.*, '在线训练' as al_name
+                          FROM al_task a
+                          WHERE a.al_class = 'onlineTrain' AND a.server_url=#{serverUrl}
+                      ) t
+        WHERE t.al_name != '' AND t.server_url = #{serverUrl}
+        ORDER BY t.id DESC;
+    </select>
+
+</mapper>
