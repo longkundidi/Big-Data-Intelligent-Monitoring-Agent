@@ -1,0 +1,15 @@
+services:
+  agent-web:
+    build:
+      context: ./agent-web
+    container_name: streamdoctor-agent-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4173:80"
+    networks:
+      - streamdoctor
+
+networks:
+  streamdoctor:
+    name: streamdoctor_default
+    external: true

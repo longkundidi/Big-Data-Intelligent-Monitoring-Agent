@@ -9,7 +9,7 @@
 		<version>3.6.6</version>
 	</parent>
 
-	<artifactId>modelservice</artifactId>
+	<artifactId>algorithm-service-parent</artifactId>
 	<packaging>pom</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -62,7 +62,7 @@
 			<dependency>
 				<groupId>org.projectlombok</groupId>
 				<artifactId>lombok</artifactId>
-				<version>1.18.0</version>
+				<version>1.18.32</version>
 			</dependency>
 			<dependency>
 				<groupId>org.apache.commons</groupId>

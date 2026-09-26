@@ -1,0 +1,113 @@
+services:
+  kafka:
+    image: apache/kafka:3.9.1
+    container_name: streamdoctor-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx1024m
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    mem_limit: 1400m
+
+  kafka-init:
+    image: apache/kafka:3.9.1
+    container_name: streamdoctor-kafka-init
+    depends_on:
+      - kafka
+    restart: "no"
+    command:
+      - /bin/bash
+      - -ec
+      - |
+        until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do sleep 2; done
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic dc_algorithm_REGTCN --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic dc_algorithm_sink_REGTCN --partitions 3 --replication-factor 1
+
+  regtcn-model:
+    build:
+      context: ./demo-model
+    container_name: streamdoctor-regtcn-model
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8873:8000"
+    environment:
+      MODEL_DELAY_MS: ${MODEL_DELAY_MS:-20}
+      MODEL_ERROR_RATE: ${MODEL_ERROR_RATE:-0}
+      MODEL_ANOMALY_THRESHOLD: ${MODEL_ANOMALY_THRESHOLD:-1.0}
+    mem_limit: 256m
+
+  jobmanager:
+    image: flink:1.17.2-scala_2.12-java11
+    container_name: streamdoctor-flink-jobmanager
+    restart: unless-stopped
+    command: jobmanager
+    ports:
+      - "127.0.0.1:8081:8081"
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+        jobmanager.memory.process.size: 1024m
+        parallelism.default: 1
+    mem_limit: 1300m
+
+  taskmanager:
+    image: flink:1.17.2-scala_2.12-java11
+    container_name: streamdoctor-flink-taskmanager
+    restart: unless-stopped
+    command: taskmanager
+    depends_on:
+      - jobmanager
+    environment:
+      MODEL_URL: http://regtcn-model:8000/createTask/
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+        taskmanager.memory.process.size: 2048m
+        parallelism.default: 1
+    mem_limit: 2400m
+
+  flink-job-submit:
+    build:
+      context: ./elevator-flink-monitoring
+    container_name: streamdoctor-flink-job-submit
+    depends_on:
+      - jobmanager
+      - taskmanager
+      - kafka-init
+      - regtcn-model
+    restart: "no"
+    environment:
+      KAFKA_SERVERS: kafka:9092
+      INPUT_TOPIC: dc_algorithm_REGTCN
+      OUTPUT_TOPIC: dc_algorithm_sink_REGTCN
+      CONSUMER_GROUP: REGTCN_kafka_group
+      MODEL_URL: http://regtcn-model:8000/createTask/
+    command:
+      - /bin/bash
+      - -ec
+      - |
+        until /opt/flink/bin/flink list -m jobmanager:8081 >/tmp/flink-list 2>&1; do sleep 2; done
+        if grep -q 'algorithm_REGTCN' /tmp/flink-list; then
+          echo 'algorithm_REGTCN is already running'
+        else
+          /opt/flink/bin/flink run -d -m jobmanager:8081 -c com.streamdoctor.RegtcnPipelineJob /opt/flink/usrlib/regtcn-pipeline.jar
+        fi
+
+volumes:
+  kafka-data:
+
+networks:
+  default:
+    name: streamdoctor_default

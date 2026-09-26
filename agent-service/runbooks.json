@@ -1,0 +1,22 @@
+[
+  {"id":"R01","title":"模型推理超时导致 Flink 处理停滞","components":["model","flink"],"version":"all","body":"确认模型 HTTP 超时和错误率、Flink 算子忙碌程度以及 Kafka 积压是否按时间先后增加。先排查模型服务容量和依赖，再观察 Flink 消费恢复；不要直接重启共享作业。"},
+  {"id":"R02","title":"模型推理服务响应缓慢","components":["model"],"version":"all","body":"比较模型延迟分位值、超时数量和正常时段的基线；核对 CPU、内存和批大小。延迟增加不等于故障根因，检查其上游请求量。"},
+  {"id":"R03","title":"模型服务连接失败","components":["model"],"version":"all","body":"核查健康探针、网络连接、容器状态、服务端异常日志；检查模型地址是否与作业配置一致。"},
+  {"id":"R04","title":"Flink 作业失败或停止","components":["flink"],"version":"1.17","body":"读取作业状态及 exception history，确定首次失败时刻和异常类型。检查是否存在资源不足、算子异常与外部服务超时。"},
+  {"id":"R05","title":"Flink 作业重启频繁","components":["flink"],"version":"1.17","body":"对照重启计数、异常历史和 Checkpoint 失败时间，优先排查相同异常反复发生的组件。"},
+  {"id":"R06","title":"Flink 算子反压","components":["flink"],"version":"1.17","body":"逐个比较算子 busyTime 与 backPressuredTime 及输入输出速率，从下游最慢算子向上定位瓶颈。"},
+  {"id":"R07","title":"Checkpoint 失败","components":["flink"],"version":"1.17","body":"区分 Checkpoint 未启用、偶发失败和连续失败；检查状态存储、超时与反压。未启用不能直接当作故障。"},
+  {"id":"R08","title":"Checkpoint 耗时增加","components":["flink"],"version":"1.17","body":"对照算子反压、状态大小与持久化后端性能；用同一时段指标确认相关性。"},
+  {"id":"R09","title":"Flink 输入速率下降","components":["flink","kafka"],"version":"all","body":"核对 Kafka 最新位点是否增加、源模拟器是否发送，再判断是上游断流还是 Flink 消费异常。"},
+  {"id":"R10","title":"Flink 输出速率降为零","components":["flink"],"version":"all","body":"检查作业状态、输入速率和下游模型调用；输入仍增加但输出为零时重点排查阻塞算子。"},
+  {"id":"R11","title":"Kafka 消费积压增加","components":["kafka"],"version":"all","body":"按分区比较最新位点和已提交位点的趋势；提交位点存在周期性滞后，须联同 Flink 吞吐量核验。"},
+  {"id":"R12","title":"Kafka 消费组没有提交位点","components":["kafka"],"version":"all","body":"消费组无已提交位点时积压未知，不要用最新位点估算；检查消费组名称及作业是否正确订阅。"},
+  {"id":"R13","title":"Kafka Topic 不存在","components":["kafka"],"version":"all","body":"确认环境、Topic 名称、权限与生产端路由配置；检查上游实际写入 Topic。"},
+  {"id":"R14","title":"Kafka 集群不可用","components":["kafka"],"version":"all","body":"区分连接超时、元数据不可达与空 Topic；观测失败要标记未知，不可推断流量正常或为零。"},
+  {"id":"R15","title":"源数据停止产生","components":["source","kafka"],"version":"all","body":"查看模拟器发送日志、输入 Topic 最新位点增长和 InfluxDB 最新写入时间，确认是否源头断流。"},
+  {"id":"R16","title":"输入窗口格式错误","components":["source","flink"],"version":"all","body":"检查 dc_data 是否恰好包含 1024 个有限数值、dc_time 与 id 是否有效；查看作业异常历史。"},
+  {"id":"R17","title":"结果入库停止","components":["sink"],"version":"all","body":"比较输出 Topic 与结果表的最新时间。如果输出消息持续增加但入库停止，优先检查 sink 作业和数据库。"},
+  {"id":"R18","title":"观测指标不可用","components":["flink","kafka","model"],"version":"all","body":"记录失败的接口及时间段，报告证据缺口。观测失败不能当作组件健康或停止。"},
+  {"id":"R19","title":"资源使用率过高","components":["flink","model"],"version":"all","body":"使用真实采集 CPU 与内存，与同一时间段延迟、吞吐和重启事件比较；不使用固定演示值判断健康。"},
+  {"id":"R20","title":"诊断后恢复验证","components":["flink","kafka","model","sink"],"version":"all","body":"处理后重新读取状态、输入输出速率、消费积压趋势、服务延迟和结果写入，比较同一链路的处理前后证据。"}
+]

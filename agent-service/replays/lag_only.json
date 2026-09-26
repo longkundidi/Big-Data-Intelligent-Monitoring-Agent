@@ -1,0 +1,1 @@
+{"name":"消费积压但原因待核验（隔离回放）","expected":"lag_increasing","flink_status":{"status":"ok","payload":{"state":"RUNNING","exceptions":[]}},"flink_metrics":{"status":"unavailable","payload":{"error":"算子指标不可用"}},"kafka_offsets":{"status":"ok","payload":{"total_lag":200,"previous_total_lag":50}},"model_health":{"status":"ok","payload":{"state":"healthy","metrics":{}}}}

@@ -1,0 +1,35 @@
+services:
+  agent:
+    build:
+      context: ./agent-service
+    container_name: streamdoctor-agent
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8099:8099"
+    environment:
+      AGENT_DB_PATH: /data/streamdoctor.db
+      AGENT_TOPOLOGY_PATH: /app/topology.json
+      AGENT_POLL_ENABLED: "true"
+      AGENT_TRUSTED_NETWORKS: 172.18.0.0/16
+      FLINK_REST_URL: http://jobmanager:8081
+      KAFKA_SERVERS: kafka:9092
+      MODEL_HEALTH_URL: ${MODEL_HEALTH_URL:-http://regtcn-model:8000/healthz}
+      AGENT_MODEL_METRICS_LOG: ${AGENT_MODEL_METRICS_LOG:-}
+      AGENT_LOG_PATH: ${AGENT_LOG_PATH:-}
+      AGENT_MODEL_API_KEY: ${AGENT_MODEL_API_KEY:-}
+      AGENT_MODEL_BASE_URL: ${AGENT_MODEL_BASE_URL:-}
+      AGENT_MODEL_NAME: ${AGENT_MODEL_NAME:-gpt-6-astra}
+      AGENT_REASONING_EFFORT: ${AGENT_REASONING_EFFORT:-high}
+    volumes:
+      - agent-data:/data
+    mem_limit: 1200m
+    networks:
+      - streamdoctor
+
+volumes:
+  agent-data:
+
+networks:
+  streamdoctor:
+    name: streamdoctor_default
+    external: true

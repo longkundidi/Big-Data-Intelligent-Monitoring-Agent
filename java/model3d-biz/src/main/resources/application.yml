@@ -14,7 +14,7 @@ spring:
       username: @nacos.username@
       password: @nacos.password@
       discovery:
-        server-addr: ${NACOS_HOST:pig-register}:${NACOS_PORT:8848}
+        server-addr: ${NACOS_HOST:127.0.0.1}:${NACOS_PORT:8848}
       config:
         server-addr: ${spring.cloud.nacos.discovery.server-addr}
   config:
@@ -27,7 +27,7 @@ spring:
     username: root
 #    password: zcx123456
     password: root
-    url: jdbc:mysql://192.168.65.237:3306/new_algorithom_Repository?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:new_algorithom_Repository}?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
 #    url: jdbc:mysql://192.168.65.44:3306/new_algorithom_Repository?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=Asia/Shanghai
 
   servlet:
@@ -45,9 +45,9 @@ security:
       scope: server
 
 minio:
-  endpoint: http://minio-server:9000
-  accesskey: minioadmin
-  secretKey: minioadmin
+  endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+  accesskey: ${MINIO_ACCESS_KEY:minioadmin}
+  secretKey: ${MINIO_SECRET_KEY:minioadmin}
   modelBucket: modelfile  #模型桶名
   imageBucket: modelimg   #图片桶名
 

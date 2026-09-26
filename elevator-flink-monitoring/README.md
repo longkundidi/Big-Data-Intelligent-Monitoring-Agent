@@ -29,9 +29,18 @@ The job uses the original Kafka timestamp as the window end and preserves it in
 the output. Invalid input or a failed model call fails the record processing so
 Flink can restart and retry it; the job never emits a fabricated normal result.
 
-Server submission:
+The deployable Java job under `src/main/java` is used by the ECS Compose stack.
+It reads `KAFKA_SERVERS`, `INPUT_TOPIC`, `OUTPUT_TOPIC`, `CONSUMER_GROUP`, and
+`MODEL_URL` from the container environment. Build it locally with:
 
 ```bash
-docker exec flink-jobmanager /opt/flink/bin/flink run -d \
+mvn -B -DskipTests package
+```
+
+The Python implementation remains a readable protocol reference. Manual
+PyFlink submission:
+
+```bash
+docker exec streamdoctor-flink-jobmanager /opt/flink/bin/flink run -d \
   --python /job/REGTCN/sink.py
 ```

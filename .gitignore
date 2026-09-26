@@ -10,6 +10,11 @@
 .agents/
 outputs/
 *.log
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/*.egg-info/
+agent-service/*.db*
 hs_err_pid*
 replay_pid*
 *.zip
@@ -18,3 +23,5 @@ replay_pid*
 .env.local
 .env.*.local
 /flink-algorithm/flink-algorithm-common/src/main/resources/N15_M01_F10_4096.csv
+.migration/
+elevator-flink-monitoring/target/

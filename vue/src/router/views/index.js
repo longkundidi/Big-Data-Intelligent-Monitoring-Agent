@@ -17,6 +17,12 @@ export default [{
             import(/* webpackChunkName: "views" */ '@/page/WelIndex.vue')
     },
         {
+            path: '/monitor/streamdoctor',
+            name: '运行诊断 Agent',
+            meta: { isAuth: import.meta.env.DEV ? false : true },
+            component: () => import('@/views/monitor/streamdoctor/index.vue')
+        },
+        {
             path: '/model3d/modelBaseTree/index',
             name: '库结构树编辑',
             component: () =>

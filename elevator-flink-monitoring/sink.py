@@ -1,5 +1,8 @@
 import json
 import math
+import logging
+import os
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -10,19 +13,16 @@ from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer
 
 
 JOB_NAME = "algorithm_REGTCN"
-KAFKA_SERVERS = (
-    "177.9.0.34:9092,"
-    "177.9.0.32:9093,"
-    "177.9.0.28:9094"
-)
-SOURCE_TOPIC = "dc_algorithm_REGTCN"
-SINK_TOPIC = "dc_algorithm_sink_REGTCN"
-CONSUMER_GROUP_ID = "REGTCN_kafka_group"
-MODEL_URL = "http://192.168.16.219:8873/createTask/"
+KAFKA_SERVERS = os.getenv("KAFKA_SERVERS", "kafka:9092")
+SOURCE_TOPIC = os.getenv("INPUT_TOPIC", "dc_algorithm_REGTCN")
+SINK_TOPIC = os.getenv("OUTPUT_TOPIC", "dc_algorithm_sink_REGTCN")
+CONSUMER_GROUP_ID = os.getenv("CONSUMER_GROUP", "REGTCN_kafka_group")
+MODEL_URL = os.getenv("MODEL_URL", "http://regtcn-model:8000/createTask/")
 MONITOR_POINT_ID = "smart-home-aux1-a1-traction-point1"
 SAMPLE_COUNT = 1024
 BATCH_SECONDS = 30
 HTTP_TIMEOUT_SECONDS = 30
+LOGGER = logging.getLogger("streamdoctor.inference")
 
 
 def parse_values(raw_data):
@@ -76,6 +76,7 @@ def build_model_request(message, values):
 
 
 def invoke_model(task):
+    started = time.monotonic()
     request = Request(
         MODEL_URL,
         data=json.dumps(task, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
@@ -86,10 +87,14 @@ def invoke_model(task):
         with urlopen(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
             response_body = response.read().decode("utf-8")
     except HTTPError as exc:
+        LOGGER.error("model_call ts_ms=%d status=http_error duration_ms=%.1f code=%s", int(time.time() * 1000), (time.monotonic() - started) * 1000, exc.code)
         body = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError("REGTCN HTTP {}: {}".format(exc.code, body)) from exc
     except URLError as exc:
+        LOGGER.error("model_call ts_ms=%d status=timeout_or_network_error duration_ms=%.1f", int(time.time() * 1000), (time.monotonic() - started) * 1000)
         raise RuntimeError("REGTCN service request failed: {}".format(exc.reason)) from exc
+
+    LOGGER.info("model_call ts_ms=%d status=ok duration_ms=%.1f", int(time.time() * 1000), (time.monotonic() - started) * 1000)
 
     response_task = json.loads(response_body)
     if response_task.get("taskState") != 2:

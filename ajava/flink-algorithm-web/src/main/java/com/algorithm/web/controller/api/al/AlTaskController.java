@@ -48,8 +48,10 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -539,23 +541,23 @@ public class AlTaskController extends BaseController {
 	}
 
 	public RestResult upload(MultipartFile trainDataset, MultipartFile testDataset, String path) throws Exception {
-		// Step 1: 下载文件
-		String localFilePath = "D://temp/temp_file.zip"; // 本地临时文件路径
-		downloadFileFromMinio(path, localFilePath);
-		// Step 2: 解压文件
-		String tempDirPath = "D:/temp/temp_dir"; // 解压路径
-		unzip(localFilePath, tempDirPath);
-		// Step 3: 写入 trainDataset 和 testDataset
-		writeDatasetToFile(trainDataset, tempDirPath + "/trainDataset.csv");
-		writeDatasetToFile(testDataset, tempDirPath + "/testDataset.csv");
-		// Step 4: 重新压缩文件
-		String newZipPath = "D://temp/modified_file.zip";
-		zip(tempDirPath, newZipPath);
-		// Step 5: 上传到 MinIO
-		uploadFileToMinio(newZipPath, path);
-		// 清理临时文件
-		cleanUpTempFiles(localFilePath, tempDirPath, newZipPath);
-		return RestResult.success("File uploaded successfully.");
+		Path workDir = Files.createTempDirectory("algorithm-upload-");
+		String localFilePath = workDir.resolve("temp_file.zip").toString();
+		String tempDirPath = workDir.resolve("temp_dir").toString();
+		String newZipPath = workDir.resolve("modified_file.zip").toString();
+		try {
+			downloadFileFromMinio(path, localFilePath);
+			unzip(localFilePath, tempDirPath);
+			writeDatasetToFile(trainDataset, Paths.get(tempDirPath, "trainDataset.csv").toString());
+			writeDatasetToFile(testDataset, Paths.get(tempDirPath, "testDataset.csv").toString());
+			zip(tempDirPath, newZipPath);
+			uploadFileToMinio(newZipPath, path);
+			return RestResult.success("File uploaded successfully.");
+		}
+		finally {
+			cleanUpTempFiles(localFilePath, tempDirPath, newZipPath);
+			Files.deleteIfExists(workDir);
+		}
 	}
 
 	// Step 1: 下载文件
@@ -678,7 +680,12 @@ public class AlTaskController extends BaseController {
 	// 清理临时文件
 	private void cleanUpTempFiles(String localFilePath, String tempDirPath, String newZipPath) throws IOException {
 		Files.deleteIfExists(Paths.get(localFilePath));
-		Files.walk(Paths.get(tempDirPath)).map(Path::toFile).forEach(File::delete);
+		Path tempDir = Paths.get(tempDirPath);
+		if (Files.exists(tempDir)) {
+			try (Stream<Path> paths = Files.walk(tempDir)) {
+				paths.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
+			}
+		}
 		Files.deleteIfExists(Paths.get(newZipPath));
 	}
 

@@ -5,7 +5,7 @@ param(
     [string]$InfluxBucket = 'elevate',
     [Parameter(Mandatory = $true)]
     [string]$InfluxToken,
-    [string]$MySqlHost = '192.168.65.237',
+    [string]$MySqlHost = '127.0.0.1',
     [int]$MySqlPort = 3306,
     [string]$MySqlDatabase = 'new_algorithom_Repository',
     [string]$MySqlUser = 'root',

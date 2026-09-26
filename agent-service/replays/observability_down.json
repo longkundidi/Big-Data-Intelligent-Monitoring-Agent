@@ -1,0 +1,1 @@
+{"name":"观测接口不可用（隔离回放）","expected":"insufficient_evidence","flink_status":{"status":"unavailable","payload":{"error":"Flink REST 超时"}},"flink_metrics":{"status":"unavailable","payload":{"error":"Flink REST 超时"}},"kafka_offsets":{"status":"unavailable","payload":{"error":"Kafka 元数据超时"}},"model_health":{"status":"unavailable","payload":{"error":"模型健康探针超时"}}}

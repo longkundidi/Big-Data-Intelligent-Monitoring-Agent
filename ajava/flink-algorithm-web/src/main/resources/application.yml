@@ -8,8 +8,6 @@ spring:
     name: lk
   cloud:
     inetutils:
-      preferred-networks:
-        - 192.168
       ignored-interfaces:
         - VMware.*
         - VirtualBox.*
@@ -17,9 +15,9 @@ spring:
       username: nacos
       password: nacos
       discovery:
-        server-addr: pig-register:8848
+        server-addr: ${NACOS_HOST:127.0.0.1}:${NACOS_PORT:8848}
       config:
-        server-addr: pig-register:8848
+        server-addr: ${spring.cloud.nacos.discovery.server-addr}
   config:
     import:
       - nacos:application-dev.yml
@@ -52,7 +50,7 @@ spring:
     password: root
 #    password: 123456
     type: com.alibaba.druid.pool.DruidDataSource
-    url: jdbc:mysql://192.168.65.237:3306/new_algorithom_Repository?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:new_algorithom_Repository}?serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
     username: root
   devtools:
     livereload:
@@ -80,7 +78,7 @@ elevator:
 flink:
   rest:
     api:
-      url: http://192.168.16.219:8000
+      url: ${FLINK_REST_URL:http://127.0.0.1:8081}
 
 docker:
   host: http://192.168.16.219:2375
@@ -88,10 +86,10 @@ docker:
 logging:
   config: classpath:logging/logback-${spring.profiles.active}.xml
 minio:
-  accessKey: I3OwKblOgaZrJNgD
+  accessKey: ${MINIO_ACCESS_KEY:minioadmin}
   bucketName: bigdata
-  endpoint: http://192.168.16.219:9000
-  secretKey: 7x7JeHolk3N6wXrneIN3b5I6x9i82NAS
+  endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+  secretKey: ${MINIO_SECRET_KEY:minioadmin}
 mybatis:
   mapper-locations: classpath:mapper/*.xml
 mybatis-plus:

@@ -22,6 +22,10 @@ export default defineConfig(({mode, command}) => {
             host: '0.0.0.0', // 允许外部访问
             port: 8080,
             proxy: {
+                '/api/agent': {
+                    target: 'http://127.0.0.1:8099',
+                    changeOrigin: true
+                },
                 '/api/al': {
                     target: 'http://pig-gateway:9999',
                     changeOrigin: true,

@@ -145,8 +145,8 @@ public class FlinkAlgorithmServiceImpl implements FlinkAlgorithmService {
 			return response.getBody() == null ? Collections.emptyList() : response.getBody();
 		}
 		catch (Exception exception) {
-			log.warn("读取Docker容器状态失败: {}", exception.getMessage());
-			return Collections.emptyList();
+			log.error("读取Docker容器状态失败", exception);
+			throw new IllegalStateException("Docker容器状态不可用", exception);
 		}
 	}
 

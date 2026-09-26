@@ -47,10 +47,6 @@ public class ResourceUsageServiceImpl extends ServiceImpl<ResourceUsageMapper, R
 
 	@Override
 	public ContainerStatsResponse containerStats(String serverName, String containerName) {
-		if (serverName.equals("219服务器") || serverName.equals("220服务器")) {
-			return defaultStats(serverName, containerName);
-		}
-
 		String dockerHost = serverListMapper.getUrlByName(serverName);
 
 		// 获取容器ID
@@ -154,26 +150,6 @@ public class ResourceUsageServiceImpl extends ServiceImpl<ResourceUsageMapper, R
 		containerStatsResponse.setMemoryTotal(String.format("%.2f", limitInGB) + " GB");
 
 		return containerStatsResponse;
-	}
-
-	private ContainerStatsResponse defaultStats(String serverName, String containerName) {
-		ContainerStatsResponse response = new ContainerStatsResponse();
-		if (serverName.equals("219服务器")) {
-			response.setCpuPercent(7.8);
-			response.setCpuTotal(15);
-			response.setMemoryPercent(5.7);
-			response.setMemoryTotal("19.17 GB");
-		}
-		else if (serverName.equals("220服务器")) {
-			response.setCpuPercent(3.3);
-			response.setCpuTotal(8);
-			response.setMemoryPercent(5.07);
-			response.setMemoryTotal("2.71 GB");
-		}
-
-		// 可选：记录异常信息到日志或返回给页面
-		log.warn("Returning default stats: {默认值，因为服务器暂不可用}");
-		return response;
 	}
 
 	// 定期清理旧数据

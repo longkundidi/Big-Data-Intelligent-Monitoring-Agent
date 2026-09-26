@@ -1,0 +1,10 @@
+{
+  "name": "模型变慢导致 Flink 处理下降与 Kafka 积压（隔离回放）",
+  "expected": "model_slow",
+  "topology": {"status":"ok","payload":{"chain":"elevator-regtcn","model":"REGTCN","input":"dc_algorithm_REGTCN","job":"algorithm_REGTCN"}},
+  "flink_status": {"status":"ok","payload":{"state":"RUNNING","job_id":"replay-job","checkpoint_status":"disabled","exceptions":[]}},
+  "flink_metrics": {"status":"ok","payload":{"vertices":[{"name":"REGTCN inference","status":"RUNNING","metrics":{"numRecordsInPerSecond":"0.2","numRecordsOutPerSecond":"0.1","busyTimeMsPerSecond":"935","backPressuredTimeMsPerSecond":"710"}}]}},
+  "kafka_offsets": {"status":"ok","payload":{"topic":"dc_algorithm_REGTCN","consumer_group":"REGTCN_kafka_group","partitions":[{"partition":0,"latest":1200,"committed":980,"lag":220}],"total_lag":220,"previous_total_lag":80}},
+  "model_health": {"status":"ok","payload":{"state":"degraded","metrics":{"latency_p95_ms":8000,"baseline_p95_ms":180,"timeouts_5m":12,"errors_5m":2}}},
+  "logs": {"status":"ok","payload":{"lines":["2026-07-20 10:00 model inference latency p95=8000ms", "2026-07-20 10:01 model HTTP timeout in REGTCN inference"]}}
+}

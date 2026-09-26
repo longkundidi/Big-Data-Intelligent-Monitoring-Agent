@@ -1,0 +1,21 @@
+{
+  "id": "elevator-regtcn",
+  "name": "电梯 REGTCN 实时监测链路",
+  "flink_job_name": "algorithm_REGTCN",
+  "consumer_group": "REGTCN_kafka_group",
+  "input_topic": "dc_algorithm_REGTCN",
+  "output_topic": "dc_algorithm_sink_REGTCN",
+  "nodes": [
+    {"id": "source", "label": "电梯数据模拟器", "type": "source"},
+    {"id": "input", "label": "输入 Kafka", "type": "kafka", "topic": "dc_algorithm_REGTCN"},
+    {"id": "job", "label": "REGTCN Flink 作业", "type": "flink", "registry_key": "elevator-monitor"},
+    {"id": "model", "label": "REGTCN 模型服务", "type": "model", "registry_key": "elevator-monitor-model"},
+    {"id": "output", "label": "输出 Kafka", "type": "kafka", "topic": "dc_algorithm_sink_REGTCN"},
+    {"id": "sink", "label": "结果入库", "type": "sink", "registry_key": "elevator-result-sink"}
+  ],
+  "edges": [
+    {"from": "source", "to": "input"}, {"from": "input", "to": "job"},
+    {"from": "job", "to": "model"}, {"from": "model", "to": "job"},
+    {"from": "job", "to": "output"}, {"from": "output", "to": "sink"}
+  ]
+}
