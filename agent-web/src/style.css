@@ -188,6 +188,12 @@ button { cursor: pointer; }
 .capability-list div:last-child { border: 0; }
 .capability-list svg { color: #94ce7b; }
 .capability-list em { font-style: normal; color: #617084; font-size: 10px; margin-left: auto; }
+.agent-collaboration { border: 1px solid #253143; border-radius: 7px; overflow: hidden; }
+.agent-message { min-height: 38px; padding: 8px 10px; display: grid; grid-template-columns: 54px 14px 54px 1fr; align-items: center; gap: 4px; border-bottom: 1px solid #222c39; font-size: 10px; }
+.agent-message:last-child { border-bottom: 0; }
+.agent-message span { color: #9ed878; }
+.agent-message i { color: #526175; font-style: normal; text-align: center; }
+.agent-message strong { color: #9aa8b8; font-size: 10px; font-weight: 400; text-align: right; }
 .topology-card { border: 1px solid #29384a; border-radius: 8px; background: #131b25; padding: 15px 13px; }
 .flow-node { border: 1px solid #33455a; border-radius: 7px; padding: 10px; position: relative; }
 .flow-node span { font-size: 9px; color: #697b8f; }

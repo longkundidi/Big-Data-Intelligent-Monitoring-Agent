@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from .agents import ExecutorAgent, ReviewerAgent
+from .coordination import AgentCoordinator
 from .context import ContextAssembler
 from .diagnosis import report_for
 from .memory import MemoryManager
@@ -209,6 +210,7 @@ class AgentRuntime:
                                                    "selected_resource_ids": bundle.selected_resource_ids,
                                                    "spec_version_id": bundle.spec.get("id") if bundle.spec else None})
             registry = ToolRegistry(self.settings, self.store, project_id, run_id, replay=replay)
+            coordinator = AgentCoordinator(self.store, run_id, lambda event_type, payload: self._emit(run_id, event_type, payload))
             evidence = []
             tool_names = self._tool_order(question)
             for round_number, tool_name in enumerate(tool_names, start=1):
@@ -236,13 +238,23 @@ class AgentRuntime:
                 else:
                     answer, report = self._answer(question, evidence, bundle)
 
-                self._emit(run_id, "reviewer_started", {"agent_role": "reviewer", "evidence_count": len(evidence)})
-                review = self.reviewer.review(report, evidence)
+                review_task = coordinator.delegate("reviewer", "review_evidence", {
+                    "question": question, "report": report, "evidence": evidence,
+                })
+                self._emit(run_id, "reviewer_started", {"agent_role": "reviewer", "task_id": review_task["id"],
+                                                           "evidence_count": len(evidence)})
+                review = self.reviewer.handle(review_task)
                 report["review"] = review
-                self._emit(run_id, "reviewer_finished", review)
+                coordinator.complete(review_task["id"], review)
+                self._emit(run_id, "reviewer_finished", {**review, "task_id": review_task["id"]})
 
                 intent, blocked_reason = self.executor_agent.plan(question)
                 if intent:
+                    executor_task = coordinator.delegate("executor", "execute_action", {
+                        "action": intent.action, "target": intent.target, "explicit_request": intent.explicit,
+                        "source": intent.source, "project_id": project_id, "run_id": run_id,
+                        "triggered_by_task_id": review_task["id"],
+                    }, parent_task_id=review_task["id"])
                     action_record = self.store.create_execution_action(
                         run_id, project_id, intent.action, intent.target, intent.explicit,
                         status="blocked" if blocked_reason else "running", policy_reason=blocked_reason,
@@ -255,6 +267,7 @@ class AgentRuntime:
                         execution = {"status": "blocked", "reason": blocked_reason, "action": intent.action,
                                      "target": intent.target}
                         self.store.finish_execution_action(action_record["id"], "blocked", execution)
+                        coordinator.block(executor_task["id"], blocked_reason)
                         self._emit(run_id, "executor_blocked", {"agent_role": "executor", **execution})
                         report["execution"] = execution
                         answer += "\n执行智能体未执行：{}。".format(blocked_reason)
@@ -262,9 +275,10 @@ class AgentRuntime:
                         self._emit(run_id, "executor_started", {"agent_role": "executor",
                                                                   "action_id": action_record["id"],
                                                                   "action": intent.action, "target": intent.target})
-                        execution = self.executor_agent.execute(intent, project_id, run_id)
+                        execution = self.executor_agent.handle(executor_task)
                         final_status = "completed" if execution.get("status") == "ok" else "failed"
                         self.store.finish_execution_action(action_record["id"], final_status, execution)
+                        coordinator.complete(executor_task["id"], execution)
                         self._emit(run_id, "executor_finished", {"agent_role": "executor",
                                                                    "action_id": action_record["id"], **execution})
                         report["execution"] = execution
@@ -287,9 +301,15 @@ class AgentRuntime:
                                     evidence.extend(item for item in self.store.run_evidence(run_id)
                                                     if item["id"] == recheck_result["evidence_id"])
                             recheck_report = report_for(evidence, question, "live")
-                            recheck_review = self.reviewer.review(recheck_report, evidence)
+                            recheck_task = coordinator.delegate("reviewer", "verify_recovery", {
+                                "question": question, "report": recheck_report, "evidence": evidence,
+                                "execution_result": execution,
+                            }, parent_task_id=executor_task["id"])
+                            recheck_review = self.reviewer.handle(recheck_task)
+                            coordinator.complete(recheck_task["id"], recheck_review)
                             report["recheck"] = recheck_review
-                            self._emit(run_id, "reviewer_recheck_finished", recheck_review)
+                            self._emit(run_id, "reviewer_recheck_finished", {**recheck_review,
+                                                                              "task_id": recheck_task["id"]})
                 model_answer, usage, model_error = self._model_synthesis(
                     run_id, question, evidence, report, bundle, model_id, reasoning_effort
                 )

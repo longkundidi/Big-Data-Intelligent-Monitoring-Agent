@@ -102,6 +102,17 @@ def test_mutating_action_is_audited_and_blocked_without_executor_config(tmp_path
         assert run["execution_actions"][0]["action"] == "restart"
         assert run["execution_actions"][0]["target"] == "flink"
         assert run["execution_actions"][0]["status"] == "blocked"
+        assert [(task["agent_role"], task["task_type"], task["status"]) for task in run["subagent_tasks"]] == [
+            ("reviewer", "review_evidence", "completed"),
+            ("executor", "execute_action", "blocked"),
+        ]
+        assert [(message["from_agent"], message["to_agent"], message["message_type"])
+                for message in run["agent_messages"]] == [
+            ("coordinator", "reviewer", "delegation"),
+            ("reviewer", "coordinator", "result"),
+            ("coordinator", "executor", "delegation"),
+            ("executor", "coordinator", "blocked"),
+        ]
         assert any(event["type"] == "reviewer_finished" for event in run["events"])
         assert any(event["type"] == "executor_blocked" for event in run["events"])
 

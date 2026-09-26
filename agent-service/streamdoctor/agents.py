@@ -23,6 +23,16 @@ class ReviewerAgent:
     role = "reviewer"
     permissions = ("observe", "review", "recommend")
 
+    def handle(self, task: dict[str, Any]) -> dict[str, Any]:
+        if task.get("task_type") not in {"review_evidence", "verify_recovery"}:
+            raise ValueError("审查智能体不接受该任务类型")
+        payload = task.get("payload") or task.get("input") or {}
+        result = self.review(payload.get("report") or {}, payload.get("evidence") or [])
+        result["task_type"] = task["task_type"]
+        if task["task_type"] == "verify_recovery":
+            result["execution_result"] = payload.get("execution_result") or {}
+        return result
+
     def review(self, report: dict[str, Any], evidence: list[dict[str, Any]]) -> dict[str, Any]:
         unavailable = [item for item in evidence if item.get("status") not in {"ok", "healthy"}]
         findings = []
@@ -116,3 +126,16 @@ class ExecutorAgent:
         except Exception as exc:
             return {"status": "unavailable", "action": intent.action, "target": intent.target,
                     "error": str(exc)[:300], "details": []}
+
+    def handle(self, task: dict[str, Any]) -> dict[str, Any]:
+        if task.get("task_type") != "execute_action":
+            raise ValueError("执行智能体不接受该任务类型")
+        payload = task.get("payload") or task.get("input") or {}
+        intent = ExecutionIntent(
+            action=payload["action"], target=payload["target"],
+            explicit=bool(payload.get("explicit_request")), source=payload.get("source", "coordinator"),
+        )
+        if not intent.explicit and intent.action != "status":
+            return {"status": "blocked", "action": intent.action, "target": intent.target,
+                    "reason": "任务不包含用户明确授权"}
+        return self.execute(intent, payload["project_id"], payload["run_id"])

@@ -14,6 +14,7 @@ Kafka/Flink 运行诊断 Agent。运行时分为审查智能体和执行智能�
 - 执行智能体只支持 `status/start/stop/restart`，目标只允许 `kafka/flink/model/pipeline`。任意 Shell、容器名、URL、SQL 和脚本都不会进入执行器。
 - 含“是否、建议、怎么、分析”等表达的处置讨论只生成建议。只有 `/restart flink`、`请重启 Flink` 这类明确指令才会执行。
 - 每次计划、阻止、执行结果和恢复复查都写入 Run 事件及 `execution_actions` 审计表。
+- 协调器通过持久化的 `subagent_tasks` 委派工作，通过 `agent_messages` 接收子智能体结果；执行后会创建关联的审查者复查任务。网页右侧直接展示这些委派和回传消息。
 - `executor-service` 是唯一挂载 Docker Socket 的容器，不开放宿主机端口，并使用 `EXECUTOR_SHARED_TOKEN` 验证来自 Agent 的内部请求。部署前必须在服务器 `.env` 设置足够长的随机 Token。
 
 ## 启动

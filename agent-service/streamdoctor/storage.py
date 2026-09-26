@@ -89,6 +89,19 @@ class Store:
                     created_at TEXT NOT NULL, finished_at TEXT
                 );
                 CREATE INDEX IF NOT EXISTS idx_execution_actions_run ON execution_actions(run_id,created_at);
+                CREATE TABLE IF NOT EXISTS subagent_tasks (
+                    id TEXT PRIMARY KEY, run_id TEXT NOT NULL, parent_task_id TEXT,
+                    agent_role TEXT NOT NULL, task_type TEXT NOT NULL, status TEXT NOT NULL,
+                    input_json TEXT NOT NULL, output_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL, finished_at TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_subagent_tasks_run ON subagent_tasks(run_id,created_at);
+                CREATE TABLE IF NOT EXISTS agent_messages (
+                    seq INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL,
+                    from_agent TEXT NOT NULL, to_agent TEXT NOT NULL, message_type TEXT NOT NULL,
+                    payload_json TEXT NOT NULL, created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_agent_messages_run ON agent_messages(run_id,seq);
                 CREATE TABLE IF NOT EXISTS memories (
                     id TEXT PRIMARY KEY, project_id TEXT NOT NULL, kind TEXT NOT NULL,
                     content TEXT NOT NULL, status TEXT NOT NULL, source_ids TEXT NOT NULL DEFAULT '[]',
@@ -475,6 +488,8 @@ class Store:
                 db.execute("DELETE FROM run_events WHERE run_id=?", (run_id,))
                 db.execute("DELETE FROM tool_calls WHERE run_id=?", (run_id,))
                 db.execute("DELETE FROM execution_actions WHERE run_id=?", (run_id,))
+                db.execute("DELETE FROM agent_messages WHERE run_id=?", (run_id,))
+                db.execute("DELETE FROM subagent_tasks WHERE run_id=?", (run_id,))
                 db.execute("DELETE FROM artifacts WHERE run_id=?", (run_id,))
                 db.execute("DELETE FROM run_evidence WHERE run_id=?", (run_id,))
             db.execute("DELETE FROM runs WHERE conversation_id=?", (conversation_id,))
@@ -617,6 +632,59 @@ class Store:
         with self.connection() as db:
             rows = db.execute("SELECT id FROM execution_actions WHERE run_id=? ORDER BY created_at", (run_id,)).fetchall()
         return [self.execution_action(row["id"]) for row in rows]
+
+    def create_subagent_task(self, run_id, agent_role, task_type, input_data, parent_task_id=None):
+        task_id = str(uuid.uuid4())
+        with self.lock, self.connection() as db:
+            db.execute(
+                "INSERT INTO subagent_tasks(id,run_id,parent_task_id,agent_role,task_type,status,input_json,output_json,created_at) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (task_id, run_id, parent_task_id, agent_role, task_type, "running",
+                 json.dumps(input_data, ensure_ascii=False), "{}", now()),
+            )
+        return self.subagent_task(task_id)
+
+    def finish_subagent_task(self, task_id, status, output):
+        with self.lock, self.connection() as db:
+            db.execute("UPDATE subagent_tasks SET status=?,output_json=?,finished_at=? WHERE id=?",
+                       (status, json.dumps(output, ensure_ascii=False), now(), task_id))
+        return self.subagent_task(task_id)
+
+    def subagent_task(self, task_id):
+        with self.connection() as db:
+            row = db.execute("SELECT * FROM subagent_tasks WHERE id=?", (task_id,)).fetchone()
+        if not row:
+            return None
+        item = dict(row)
+        item["input"] = json.loads(item.pop("input_json"))
+        item["output"] = json.loads(item.pop("output_json"))
+        return item
+
+    def subagent_tasks(self, run_id):
+        with self.connection() as db:
+            rows = db.execute("SELECT id FROM subagent_tasks WHERE run_id=? ORDER BY created_at", (run_id,)).fetchall()
+        return [self.subagent_task(row["id"]) for row in rows]
+
+    def add_agent_message(self, run_id, from_agent, to_agent, message_type, payload):
+        timestamp = now()
+        with self.lock, self.connection() as db:
+            cursor = db.execute(
+                "INSERT INTO agent_messages(run_id,from_agent,to_agent,message_type,payload_json,created_at) VALUES(?,?,?,?,?,?)",
+                (run_id, from_agent, to_agent, message_type, json.dumps(payload, ensure_ascii=False), timestamp),
+            )
+            sequence = cursor.lastrowid
+        return {"seq": sequence, "run_id": run_id, "from_agent": from_agent, "to_agent": to_agent,
+                "message_type": message_type, "payload": payload, "created_at": timestamp}
+
+    def agent_messages(self, run_id):
+        with self.connection() as db:
+            rows = db.execute("SELECT * FROM agent_messages WHERE run_id=? ORDER BY seq", (run_id,)).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["payload"] = json.loads(item.pop("payload_json"))
+            result.append(item)
+        return result
 
     def create_memory(self, project_id, kind, content, source_ids, status="proposed"):
         memory_id = str(uuid.uuid4())

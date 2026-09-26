@@ -52,10 +52,6 @@ const templateForm = reactive({ id: '', name: '', description: '', category: '�
 const copyData = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
 const slashCommands = [
   { command: '/init', title: '初始化项目配置', description: '扫描项目目录并发布当前项目的新规格版本', icon: FolderSearch },
-  { command: '/status pipeline', title: '检查链路状态', description: '由执行智能体读取受控组件状态', icon: Activity },
-  { command: '/restart flink', title: '重启 Flink', description: '明确执行受控重启，完成后由审查智能体复查', icon: RotateCcw },
-  { command: '/restart kafka', title: '重启 Kafka', description: '明确执行受控重启，完成后由审查智能体复查', icon: RotateCcw },
-  { command: '/restart model', title: '重启模型服务', description: '明确执行受控重启，完成后由审查智能体复查', icon: RotateCcw },
 ]
 const slashOptions = computed(() => {
   const query = input.value.trim().toLowerCase()
@@ -78,6 +74,11 @@ const sections: Array<{ id: Section; label: string; icon: any }> = [
 
 const assistantMessages = computed(() => workspace.conversation?.messages?.filter((item: any) => item.role === 'assistant') || [])
 const toolEvents = computed(() => workspace.events.filter((item: any) => item.type.startsWith('tool_') || item.type.startsWith('model_') || item.type.startsWith('reviewer_') || item.type.startsWith('executor_')))
+const collaborationMessages = computed(() => {
+  const persisted = workspace.activeRun?.agent_messages || []
+  if (persisted.length) return persisted
+  return workspace.events.filter((item: any) => item.type === 'agent_message').map((item: any) => item.payload)
+})
 const latestModelEvent = computed(() => [...workspace.events].reverse().find((item: any) => ['model_finished', 'model_skipped', 'model_failed'].includes(item.type)))
 const latestReport = computed(() => assistantMessages.value.at(-1)?.context?.report || null)
 const recoveryActions = computed<string[]>(() => latestReport.value?.actions || [])
@@ -107,6 +108,17 @@ function executionEventLabel(event: any) {
   if (event.type.startsWith('reviewer_')) return event.type.includes('recheck') ? '审查者复查' : '审查者分析'
   if (event.type.startsWith('executor_')) return `执行者 ${event.payload.action || ''} ${event.payload.target || ''}`.trim()
   return event.payload.tool || '准备上下文'
+}
+function agentName(role: string) {
+  return role === 'coordinator' ? '协调器' : role === 'reviewer' ? '审查者' : '执行者'
+}
+function collaborationLabel(message: any) {
+  const taskType = message.payload?.task_type
+  if (message.message_type === 'delegation') {
+    return taskType === 'review_evidence' ? '委派证据审查' : taskType === 'verify_recovery' ? '委派恢复复查' : '委派受控执行'
+  }
+  if (message.message_type === 'blocked') return '任务被权限策略阻止'
+  return taskType === 'review_evidence' ? '返回问题发现' : taskType === 'verify_recovery' ? '返回复查结论' : '返回执行结果'
 }
 function configurationSourceLabel(source: string) {
   return source === 'project_spec' ? '项目规格' : source === 'environment' ? '环境变量' : '未配置'
@@ -476,7 +488,7 @@ watch(input, (value) => {
         <template v-if="activeSection === 'overview' && rightTab === 'overview'">
           <div class="signal-grid"><div class="signal-card"><span>链路状态</span><strong :class="latestReport?.classification === 'healthy' ? 'good' : 'warn'">{{ latestReport?.classification === 'healthy' ? '正常' : latestReport ? '需关注' : '待采样' }}</strong><small>来自最近一次运行</small></div><div class="signal-card"><span>执行步骤</span><strong>{{ workspace.events.length || 0 }}</strong><small>本次会话事件</small></div><div class="signal-card"><span>已确认记忆</span><strong>{{ workspace.memories.length }}</strong><small>项目级经验</small></div><div class="signal-card"><span>资源</span><strong>{{ activeResourceCount }}</strong><small>受控连接</small></div></div>
           <div class="section-head"><span>当前执行</span><span class="muted-count">{{ workspace.activeRun?.status || '未开始' }}</span></div><div class="run-card"><div class="run-icon"><SquareTerminal :size="16" /></div><div><strong>{{ workspace.activeRun ? 'Agent 任务记录' : '等待一次项目检查' }}</strong><p>{{ workspace.activeRun ? `${toolEvents.length} 个工具事件 · ${workspace.activeRun.status}` : '右侧会显示 Agent 生成的证据和 Artifact' }}</p></div><button v-if="canResumeRun" class="resume-run" @click="workspace.resume"><RotateCcw :size="12" />继续任务</button><span v-else class="run-state" :class="workspace.activeRun?.status || 'idle'"></span></div>
-          <div class="section-head"><span>Agent 协作</span><span class="muted-count">双角色</span></div><div class="capability-list"><div><ShieldCheck :size="15" /><span>审查智能体</span><em>只读 · 发现问题</em></div><div><SquareTerminal :size="15" /><span>执行智能体</span><em>白名单 · 明确指令</em></div><div><RotateCcw :size="15" /><span>执行后复查</span><em>证据闭环</em></div></div>
+          <div class="section-head"><span>Agent 协作</span><span class="muted-count">{{ collaborationMessages.length ? `${collaborationMessages.length} 条消息` : '等待任务' }}</span></div><div v-if="collaborationMessages.length" class="agent-collaboration"><div v-for="message in collaborationMessages" :key="message.seq" class="agent-message"><span>{{ agentName(message.from_agent) }}</span><i>→</i><span>{{ agentName(message.to_agent) }}</span><strong>{{ collaborationLabel(message) }}</strong></div></div><div v-else class="capability-list"><div><ShieldCheck :size="15" /><span>审查智能体</span><em>只读 · 发现问题</em></div><div><SquareTerminal :size="15" /><span>执行智能体</span><em>白名单 · 明确指令</em></div><div><RotateCcw :size="15" /><span>协调器</span><em>委派 · 回传 · 复查</em></div></div>
         </template>
         <template v-else-if="activeSection === 'overview' && rightTab === 'topology'">
           <div class="section-head"><span>数据链路</span><span class="status-text"><span class="online-dot"></span>{{ topologyNodes.length ? '已配置' : '待配置' }}</span></div><div v-if="topologyNodes.length" class="topology-card"><template v-for="(node, index) in topologyNodes" :key="node.id"><div class="flow-node" :class="node.status || (node.type === 'source' || node.type === 'kafka' ? 'healthy' : 'unknown')"><span>{{ String(index + 1).padStart(2, '0') }}</span><strong>{{ node.label }}</strong><small>{{ node.topic || node.job_name || node.registry_key || resourceTypeLabel(node.type) }}</small></div><div v-if="index < topologyNodes.length - 1" class="flow-line"></div></template></div><div v-else class="empty-note"><Waypoints :size="18" /><span>当前项目还没有资源，先到“资源与链路”添加 Kafka、Flink 或模型服务。</span></div>
