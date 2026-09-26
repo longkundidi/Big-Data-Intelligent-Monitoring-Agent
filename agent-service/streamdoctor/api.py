@@ -17,10 +17,12 @@ from .config import ROOT, Settings
 from .diagnosis import Diagnostician
 from .models import (
     ConversationCreate, ConversationUpdate, MemoryCreate, MessageCreate, ProjectCreate, ProjectDocumentCreate,
+    ProjectInitialize,
     ProjectSpecProposal, ProjectSpecPublish, ProjectUpdate, ResourceCreate, ResourceUpdate,
     TemplateClone, TemplateCreate, TemplatePublish,
 )
 from .model_catalog import public_catalog, validate_selection
+from .project_init import discover_project
 from .runbooks import search as search_runbooks
 from .runtime import AgentRuntime
 from .specs import blank_spec, infer_spec_from_text, normalize_spec, spec_topology
@@ -555,6 +557,59 @@ def workspace_propose_project_spec(project_id: str, body: ProjectSpecProposal):
     if not current:
         raise HTTPException(404, "项目规格不存在")
     return infer_spec_from_text(body.content, current["spec"])
+
+
+@app.post("/api/agent/projects/{project_id}/initialize")
+def workspace_initialize_project(project_id: str, body: ProjectInitialize):
+    project = store.project(project_id)
+    current = store.project_spec(project_id)
+    if not project or not current:
+        raise HTTPException(404, "项目或项目规格不存在")
+    if not settings.project_scan_root:
+        raise HTTPException(409, "未配置 AGENT_PROJECT_SCAN_ROOT，无法扫描项目目录")
+    conversation = None
+    if body.conversation_id:
+        conversation = store.conversation(body.conversation_id)
+        if not conversation or conversation["project_id"] != project_id:
+            raise HTTPException(404, "当前项目中不存在该会话")
+        if store.active_run(body.conversation_id):
+            raise HTTPException(409, "会话正在执行诊断，请完成或停止后再初始化")
+        _, created = store.add_message(body.conversation_id, "user", "/init",
+                                       {"command": "init"}, body.request_id)
+        if not created:
+            return {"duplicate": True, "spec": current,
+                    "configuration": inspect_configuration(settings, store, project_id)}
+    try:
+        result = discover_project(settings.project_scan_root, current["spec"], project["name"])
+        published = current
+        if result["changes"]:
+            published = store.publish_project_spec(
+                project_id, result["spec"],
+                "通过 /init 扫描项目目录更新配置",
+                "scan", "project-directory",
+            )
+    except (OSError, ValueError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    configuration = inspect_configuration(settings, store, project_id)
+    summary = result["summary"]
+    content = (
+        "项目初始化完成：扫描 {scanned_files} 个配置文件，识别 {detected_fields} 个链路字段，"
+        "生成 {changes} 项规格变化；当前规格为 v{version}，配置完整度 {score}%。"
+    ).format(**summary, version=published["version"], score=configuration["score"])
+    if not result["changes"]:
+        content += " 未发现需要发布的新变化。"
+    if conversation:
+        store.add_message(body.conversation_id, "assistant", content, {
+            "command": "init", "scan": summary,
+            "detected": result["detected"], "files": result["files"],
+            "spec_version": published["version"], "configuration": configuration,
+        })
+    return {
+        "duplicate": False, "message": content, "scan": summary,
+        "detected": result["detected"], "files": result["files"],
+        "spec": published, "configuration": configuration,
+    }
 
 
 @app.get("/api/agent/projects/{project_id}/documents")

@@ -49,6 +49,7 @@ class Settings:
         item.strip() for item in os.getenv("AGENT_TRUSTED_NETWORKS", "").split(",") if item.strip()
     )
     poll_enabled: bool = os.getenv("AGENT_POLL_ENABLED", "false").lower() == "true"
+    project_scan_root: Path | None = Path(os.getenv("AGENT_PROJECT_SCAN_ROOT")).resolve() if os.getenv("AGENT_PROJECT_SCAN_ROOT") else None
 
     def topology(self):
         return json.loads(self.topology_path.read_text(encoding="utf-8"))

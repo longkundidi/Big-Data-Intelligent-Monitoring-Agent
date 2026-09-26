@@ -16,12 +16,14 @@ services:
       MODEL_HEALTH_URL: ${MODEL_HEALTH_URL:-http://regtcn-model:8000/healthz}
       AGENT_MODEL_METRICS_LOG: ${AGENT_MODEL_METRICS_LOG:-}
       AGENT_LOG_PATH: ${AGENT_LOG_PATH:-}
+      AGENT_PROJECT_SCAN_ROOT: /workspace
       AGENT_MODEL_API_KEY: ${AGENT_MODEL_API_KEY:-}
       AGENT_MODEL_BASE_URL: ${AGENT_MODEL_BASE_URL:-}
       AGENT_MODEL_NAME: ${AGENT_MODEL_NAME:-gpt-6-astra}
       AGENT_REASONING_EFFORT: ${AGENT_REASONING_EFFORT:-high}
     volumes:
       - agent-data:/data
+      - ./:/workspace:ro
     mem_limit: 1200m
     networks:
       - streamdoctor

@@ -91,7 +91,7 @@ class TemplateClone(BaseModel):
 class ProjectSpecPublish(BaseModel):
     spec: dict[str, Any]
     change_summary: str = Field(default="更新项目规格", min_length=1, max_length=500)
-    source_type: Literal["manual", "template", "document", "conversation", "restore", "migration"] = "manual"
+    source_type: Literal["manual", "template", "document", "conversation", "scan", "restore", "migration"] = "manual"
     source_ref: str | None = Field(default=None, max_length=500)
     base_version_id: str | None = Field(default=None, max_length=120)
 
@@ -105,3 +105,8 @@ class ProjectDocumentCreate(BaseModel):
 class ProjectSpecProposal(BaseModel):
     content: str = Field(min_length=1, max_length=20_000)
     source_type: Literal["conversation", "document"] = "conversation"
+
+
+class ProjectInitialize(BaseModel):
+    conversation_id: str | None = Field(default=None, max_length=120)
+    request_id: str | None = Field(default=None, max_length=120)

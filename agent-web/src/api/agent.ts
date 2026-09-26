@@ -23,6 +23,7 @@ export const agentApi = {
   publishSpec: (id: string, payload: Record<string, unknown>) => api.post(`/projects/${id}/spec/publish`, payload),
   restoreSpec: (id: string, versionId: string) => api.post(`/projects/${id}/spec/versions/${versionId}/restore`),
   proposeSpec: (id: string, payload: Record<string, unknown>) => api.post(`/projects/${id}/spec/propose`, payload),
+  initializeProject: (id: string, payload: Record<string, unknown>) => api.post(`/projects/${id}/initialize`, payload),
   documents: (id: string) => api.get(`/projects/${id}/documents`),
   uploadDocument: (id: string, payload: Record<string, unknown>) => api.post(`/projects/${id}/documents`, payload),
   saveProjectAsTemplate: (id: string, payload: Record<string, unknown>) => api.post(`/projects/${id}/save-as-template`, payload),

@@ -10,9 +10,10 @@ from streamdoctor.runtime import AgentRuntime
 from streamdoctor.storage import Store
 
 
-def client_for(tmp_path, monkeypatch):
+def client_for(tmp_path, monkeypatch, scan_root=None):
     settings = Settings(db_path=tmp_path / "workspace.db", topology_path=ROOT / "topology.json", poll_enabled=False,
-                        model_api_key="", model_base_url="", model_name="", model_reasoning_effort="")
+                        model_api_key="", model_base_url="", model_name="", model_reasoning_effort="",
+                        project_scan_root=scan_root)
     store = Store(settings.db_path)
     monkeypatch.setattr(api, "settings", settings)
     monkeypatch.setattr(api, "store", store)
@@ -175,6 +176,48 @@ def test_template_spec_history_restore_and_document_draft(tmp_path, monkeypatch)
             "content": "备用服务器 10.0.0.20，Topic: elevator-input，消费组: monitor-group"}).json()
         assert document["parse_status"] == "parsed"
         assert "10.0.0.20" in {host["address"] for host in document["parse_result"]["spec"]["hosts"]}
+
+
+def test_project_init_scans_safe_config_and_versions_only_the_project(tmp_path, monkeypatch):
+    scan_root = tmp_path / "project"
+    scan_root.mkdir()
+    (scan_root / ".env").write_text("INPUT_TOPIC=must-not-be-read\n", encoding="utf-8")
+    (scan_root / ".env.example").write_text("INPUT_TOPIC=elevator-input\nOUTPUT_TOPIC=elevator-output\n", encoding="utf-8")
+    (scan_root / "compose.infrastructure.yml").write_text(
+        """services:
+  job:
+    environment:
+      KAFKA_SERVERS: kafka:9092
+      FLINK_REST_URL: http://jobmanager:8081
+      MODEL_HEALTH_URL: http://model:8000/healthz
+      CONSUMER_GROUP: elevator-group
+      FLINK_JOB_NAME: elevator-job
+""", encoding="utf-8")
+    client, _ = client_for(tmp_path, monkeypatch, scan_root)
+    with client:
+        project = client.post("/api/agent/projects", json={"name": "自动发现项目"}).json()
+        conversation = client.post("/api/agent/projects/{}/conversations".format(project["id"]),
+                                   json={"title": "初始化"}).json()
+        initialized = client.post("/api/agent/projects/{}/initialize".format(project["id"]), json={
+            "conversation_id": conversation["id"], "request_id": "init-one",
+        })
+        assert initialized.status_code == 200
+        result = initialized.json()
+        assert result["scan"]["detected_fields"] == 7
+        assert ".env" not in {item["path"] for item in result["files"]}
+        assert result["detected"]["INPUT_TOPIC"] == "elevator-input"
+        detail = client.get("/api/agent/projects/{}".format(project["id"])).json()
+        assert detail["spec"]["source_type"] == "scan"
+        assert detail["spec"]["version"] == 2
+        assert client.get("/api/agent/templates/blank").json()["current_version"] == 1
+        messages = client.get("/api/agent/conversations/{}".format(conversation["id"])).json()["messages"]
+        assert [item["role"] for item in messages] == ["user", "assistant"]
+        assert "项目初始化完成" in messages[-1]["content"]
+        duplicate = client.post("/api/agent/projects/{}/initialize".format(project["id"]), json={
+            "conversation_id": conversation["id"], "request_id": "init-one",
+        }).json()
+        assert duplicate["duplicate"] is True
+        assert client.get("/api/agent/projects/{}".format(project["id"])).json()["spec"]["version"] == 2
 
 
 def test_conversation_management_and_cascade_delete(tmp_path, monkeypatch):

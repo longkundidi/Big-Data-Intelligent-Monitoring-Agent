@@ -6,6 +6,8 @@ Kafka/Flink 运行诊断 Agent。基于开源 LangChain `create_agent` 与 LangG
 
 项目链路现在使用版本化规格保存。系统内置空白、Kafka 积压、Kafka + Flink、Flink + 模型、Flink + 数据库五套模板；模板和项目规格都保存服务器、服务、节点、关系及诊断能力。模板可以复制为自定义模板并继续发布版本，项目从指定模板版本复制独立规格，因此后续修改模板不会覆盖已有项目。项目规格每次发布保存完整快照和字段级变更，可恢复任意旧版本；每次 Agent Run 同时固定当时的规格版本 ID。
 
+在项目会话输入 `/init`，或点击侧栏“扫描项目配置”，会从 `AGENT_PROJECT_SCAN_ROOT` 指定的只读项目目录查找 Compose、`.env.example`、`topology.json`、应用 YAML/Properties、POM 和包清单，提取 Kafka/Flink/模型端点、Topic、消费组和 Job。扫描结果只发布为当前项目的新规格版本，不修改项目最初使用的原始模板；需要复用时再由用户选择“另存为模板”。扫描器忽略真实 `.env`、Git、依赖、构建产物和数据目录，不采集密码、Token 或 API Key。
+
 ## 启动
 
 使用 Python 3.11 或 3.12。在本目录执行：
@@ -47,7 +49,7 @@ $env:AGENT_REASONING_EFFORT = "high"
 
 工作区接口使用项目和会话维度：`/api/agent/projects` 管理被监测系统，`/api/agent/projects/{id}/conversations` 管理持续对话，`/api/agent/conversations/{id}/messages` 启动一次有预算的 Agent Run，`/api/agent/runs/{id}/events` 推送工具和报告事件，`/api/agent/projects/{id}/memories/{memory_id}/approve` 确认长期记忆，`/api/agent/artifacts/{id}` 返回受校验的拓扑、图表或表格数据。未配置模型时，Run 仍会按问题选择只读工具并生成规则诊断，明确显示观测缺口和历史回放状态。
 
-模板接口位于 `/api/agent/templates`，支持新增、复制、发布新版本和把旧版本恢复为新版本。项目规格接口位于 `/api/agent/projects/{id}/spec`，支持发布、历史查询、恢复、从对话文本生成草稿以及导入 TXT、Markdown、JSON、YAML 文本文档。文档解析只生成待审核草稿，不会直接修改当前规格；项目另存为模板时默认清除主机地址和凭证引用。
+模板接口位于 `/api/agent/templates`，支持新增、复制、发布新版本和把旧版本恢复为新版本。项目规格接口位于 `/api/agent/projects/{id}/spec`，支持发布、历史查询、恢复、从对话文本生成草稿以及导入 TXT、Markdown、JSON、YAML 文本文档；`POST /api/agent/projects/{id}/initialize` 执行 `/init` 的安全目录扫描。文档解析只生成待审核草稿，不会直接修改当前规格；项目另存为模板时默认清除主机地址和凭证引用。
 
 归因规则不会把缺少的观测当作零值。Kafka 已提交位点有周期性延迟，需要结合 Flink 吞吐确认；Checkpoint 未开启显示 `disabled`，不能直接视为故障。日志文件仅允许服务端配置的有限本地文件，日志文本不会变为可执行工具。知识库为 `runbooks.json` 的 20 篇短文档，按中文分词与 BM25 检索，引用文档 ID。
 

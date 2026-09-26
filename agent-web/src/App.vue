@@ -2,9 +2,9 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   Activity, AlertTriangle, Archive, BookOpen, Bot, CheckCircle2, ChevronDown, CircleStop,
-  Copy, Database, FileText, FolderPlus, GitBranch, History, Layers, LayoutDashboard,
+  Copy, Database, FileText, FolderPlus, FolderSearch, GitBranch, History, Layers, LayoutDashboard,
   MessageSquare, Pencil, Plus, PlugZap, RefreshCw, RotateCcw, Save, Search, Send, Server,
-  ShieldCheck, Sparkles, SquareTerminal, Trash2, Upload, Waypoints, Wrench, X,
+  PanelRightOpen, ShieldCheck, Sparkles, SquareTerminal, Trash2, Upload, Waypoints, Wrench, X,
 } from 'lucide-vue-next'
 import { useWorkspaceStore } from './stores/workspace'
 import MiniChart from './components/visual/MiniChart.vue'
@@ -17,6 +17,7 @@ const input = ref('')
 const rightTab = ref('overview')
 const replay = ref('')
 const mobilePanel = ref('chat')
+const rightPanelOpen = ref(true)
 const activeSection = ref<Section>('overview')
 const selectedEvidence = ref<any>(null)
 const showProjectDialog = ref(false)
@@ -170,6 +171,15 @@ async function submit() {
   if (!value || workspace.activeRun?.status === 'running') return
   input.value = ''
   mobilePanel.value = 'chat'
+  if (value === '/init') {
+    try {
+      await workspace.initializeProject()
+      activeSection.value = 'resources'
+      openRightPanel()
+      syncRoute()
+    } catch (_) { /* The store exposes the server error in the sidebar. */ }
+    return
+  }
   await workspace.send(value, replay.value || undefined)
   replay.value = ''
 }
@@ -192,12 +202,14 @@ async function verifyRecovery() {
   showRecoveryDialog.value = false
   await quick('执行恢复复查：重新采集 Kafka、Flink、模型服务和输出链路的实时证据，与最近一次故障诊断对比，判断是否恢复以及是否仍有残留风险。')
 }
-function evidence(item: any) { selectedEvidence.value = item; rightTab.value = 'evidence'; mobilePanel.value = 'visual' }
+function openRightPanel() { rightPanelOpen.value = true; mobilePanel.value = 'visual' }
+function closeRightPanel() { rightPanelOpen.value = false; mobilePanel.value = 'chat' }
+function evidence(item: any) { selectedEvidence.value = item; rightTab.value = 'evidence'; openRightPanel() }
 function setSection(section: Section) {
   activeSection.value = section
   selectedEvidence.value = null
   if (section === 'docs' && !runbookResults.value.length) loadRunbooks()
-  if (section !== 'overview') mobilePanel.value = 'visual'
+  openRightPanel()
   syncRoute()
 }
 
@@ -385,10 +397,11 @@ watch(() => workspace.conversation?.id, () => syncModelSelection(workspace.conve
 </script>
 
 <template>
-  <div class="shell">
+  <div class="shell" :class="{ 'right-closed': !rightPanelOpen }">
     <aside class="sidebar" :class="{ 'mobile-hidden': mobilePanel !== 'projects' }">
       <div class="brand"><div class="brand-mark"><Sparkles :size="16" /></div><div><strong>StreamDoctor</strong><span>Agent workspace</span></div><button class="icon-button" title="工作区设置"><ChevronDown :size="15" /></button></div>
       <button class="new-project" @click="openProjectDialog()"><FolderPlus :size="16" /> 新建项目</button>
+      <button v-if="workspace.project" class="project-init" :disabled="workspace.activeRun?.status === 'running'" @click="quick('/init')"><FolderSearch :size="15" />扫描项目配置<code>/init</code></button>
       <button class="template-library-button" :class="{ active: activeSection === 'templates' }" @click="setSection('templates')"><Layers :size="15" />模板库<span>{{ workspace.templates.length }}</span></button>
       <div class="sidebar-label row-label"><span>项目</span><span class="muted-count">{{ workspace.projects.length }}</span></div>
       <div class="project-list">
@@ -408,12 +421,12 @@ watch(() => workspace.conversation?.id, () => syncModelSelection(workspace.conve
     </aside>
 
     <main class="chat-panel" :class="{ 'mobile-hidden': mobilePanel !== 'chat' }">
-      <header class="topbar"><div class="mobile-tabs"><button :class="{ active: mobilePanel === 'projects' }" @click="mobilePanel = 'projects'">项目</button><button :class="{ active: mobilePanel === 'chat' }" @click="mobilePanel = 'chat'">对话</button><button :class="{ active: mobilePanel === 'visual' }" @click="mobilePanel = 'visual'">详情</button></div><div class="context-pill"><span class="online-dot"></span>{{ workspace.project?.name || '选择一个项目' }}<ChevronDown :size="14" /></div><div class="top-actions"><button class="icon-button" title="刷新项目" @click="workspace.loadProjects(workspace.currentProjectId)"><RefreshCw :size="16" /></button><button class="avatar">LK</button></div></header>
+      <header class="topbar"><div class="mobile-tabs"><button :class="{ active: mobilePanel === 'projects' }" @click="mobilePanel = 'projects'">项目</button><button :class="{ active: mobilePanel === 'chat' }" @click="mobilePanel = 'chat'">对话</button><button :class="{ active: mobilePanel === 'visual' }" @click="openRightPanel">详情</button></div><div class="context-pill"><span class="online-dot"></span>{{ workspace.project?.name || '选择一个项目' }}<ChevronDown :size="14" /></div><div class="top-actions"><button v-if="!rightPanelOpen" class="icon-button reopen-panel" title="打开项目详情" @click="openRightPanel"><PanelRightOpen :size="16" /></button><button class="icon-button" title="刷新项目" @click="workspace.loadProjects(workspace.currentProjectId)"><RefreshCw :size="16" /></button><button class="avatar">LK</button></div></header>
       <section class="conversation-head"><div><div class="eyebrow"><Bot :size="13" />运行诊断 Agent</div><h1>{{ workspace.conversation?.title || (activeSection === 'overview' ? '项目运行概览' : activeSection === 'templates' ? '链路模板库' : sections.find((item) => item.id === activeSection)?.label) }}</h1><p>{{ workspace.project?.description || '新建或选择一个项目开始' }}</p></div><div class="head-status"><span class="status-chip" :class="workspace.activeRun?.status || 'idle'">{{ workspace.activeRun?.status === 'running' ? '执行中' : workspace.activeRun?.status === 'completed' ? '已完成' : '就绪' }}</span><button v-if="workspace.activeRun?.status === 'running'" class="stop-button" @click="workspace.cancel"><CircleStop :size="14" />停止</button></div></section>
       <section class="messages" ref="messageList">
         <div v-if="!workspace.conversation" class="welcome"><div class="welcome-orb"><Sparkles :size="22" /></div><h2>{{ activeSection === 'overview' ? '今天要检查哪条链路？' : activeSection === 'templates' ? '选择或创建链路模板' : sections.find((item) => item.id === activeSection)?.label }}</h2><p>当前项目：{{ workspace.project?.name || '尚未选择项目' }}。Agent 会读取受控观测工具并把证据放到右侧。</p><div class="quick-grid workflow-grid"><button @click="quick('执行一次全链路健康巡检，检查 Kafka、Flink、模型服务和结果输出，报告异常与观测缺口。')"><Activity :size="17" /><span><em>01 · 发现</em>运行巡检<small>建立当前健康基线</small></span></button><button @click="quick('诊断当前数据链路异常：从现象开始检查上下游，定位候选根因并给出证据。')"><ShieldCheck :size="17" /><span><em>02 · 定位</em>故障诊断<small>按证据定位根因</small></span></button><button class="recovery-entry" @click="openRecovery"><Wrench :size="17" /><span><em>03 · 闭环</em>处置与恢复<small>执行处置后重新验证链路</small></span><RotateCcw :size="15" /></button></div><div class="workspace-links"><button @click="setSection('resources')"><Waypoints :size="14" />资源与链路</button><button @click="setSection('docs')"><FileText :size="14" />排障文档</button></div></div>
         <template v-else>
-          <div v-for="message in workspace.conversation.messages" :key="message.id" class="message" :class="message.role"><div class="message-avatar">{{ message.role === 'user' ? '你' : 'SD' }}</div><div class="message-body"><div class="message-meta">{{ message.role === 'user' ? '你' : 'StreamDoctor' }}<span>{{ new Date(message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</span></div><div class="message-content">{{ message.content }}</div><div v-if="message.role === 'assistant' && message.context?.report" class="inline-report"><span class="report-dot" :class="message.context.report.classification"></span><span>{{ message.context.report.summary }}</span><button @click="rightTab = 'evidence'; activeSection = 'overview'; mobilePanel = 'visual'">查看证据 <ChevronDown :size="13" /></button></div></div></div>
+          <div v-for="message in workspace.conversation.messages" :key="message.id" class="message" :class="message.role"><div class="message-avatar">{{ message.role === 'user' ? '你' : 'SD' }}</div><div class="message-body"><div class="message-meta">{{ message.role === 'user' ? '你' : 'StreamDoctor' }}<span>{{ new Date(message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</span></div><div class="message-content">{{ message.content }}</div><div v-if="message.role === 'assistant' && message.context?.report" class="inline-report"><span class="report-dot" :class="message.context.report.classification"></span><span>{{ message.context.report.summary }}</span><button @click="rightTab = 'evidence'; activeSection = 'overview'; openRightPanel()">查看证据 <ChevronDown :size="13" /></button></div></div></div>
           <div v-if="latestModelEvent" class="model-run-result" :class="latestModelEvent.type"><Bot :size="14" /><div><strong>{{ latestModelEvent.payload.model_id }} · {{ latestModelEvent.payload.reasoning_effort }}</strong><span v-if="latestModelEvent.type === 'model_finished'">模型生成完成</span><span v-else>{{ latestModelEvent.payload.reason }}，已使用规则诊断结果</span></div></div>
           <div v-if="workspace.activeRun?.status === 'running'" class="thinking-row"><div class="message-avatar bot-avatar"><Sparkles :size="14" /></div><div><div class="thinking-label">Agent 正在检查</div><div class="tool-stream"><span v-for="event in toolEvents.slice(-3)" :key="event.seq" class="tool-mini" :class="event.type"><span class="mini-dot"></span>{{ executionEventLabel(event) }}</span><span class="typing"><i></i><i></i><i></i></span></div></div></div>
         </template>
@@ -421,8 +434,8 @@ watch(() => workspace.conversation?.id, () => syncModelSelection(workspace.conve
       <section class="composer-wrap"><div class="quick-actions"><button @click="quick('执行一次全链路健康巡检')"><Activity :size="14" />运行巡检</button><button @click="quick('根据我接下来描述的现象开始故障诊断')"><ShieldCheck :size="14" />故障诊断</button><button @click="openRecovery"><Wrench :size="14" />处置与恢复</button><label class="replay-toggle"><input v-model="replay" value="model_slow" type="checkbox" />回放模型变慢</label></div><div class="composer"><textarea v-model="input" rows="1" placeholder="描述异常现象、时间范围或想检查的组件…" @keydown.enter.exact.prevent="submit"></textarea><button class="send-button" :disabled="!input.trim() || workspace.activeRun?.status === 'running'" @click="submit"><Send :size="17" /></button></div><div class="model-bar"><div class="model-select"><Bot :size="12" /><select v-model="selectedModelId" :disabled="workspace.activeRun?.status === 'running'" title="选择会话模型" @change="changeModel"><option v-for="model in workspace.modelConfig.models" :key="model.id" :value="model.id">{{ model.name }}</option></select></div><div class="model-select"><Sparkles :size="12" /><select v-model="selectedReasoningEffort" :disabled="workspace.activeRun?.status === 'running'" title="选择推理强度" @change="changeReasoningEffort"><option v-for="effort in reasoningEfforts" :key="effort" :value="effort">{{ effort }}</option></select></div><span class="model-state" :class="{ configured: workspace.modelConfig.configured }">{{ workspace.modelConfig.configured ? 'API 已配置' : '规则降级模式' }}</span></div><div class="composer-foot"><span><ShieldCheck :size="12" />只读工具 · 证据可追溯</span><span>Enter 发送 · Shift + Enter 换行</span></div></section>
     </main>
 
-    <aside class="visual-panel" :class="{ 'mobile-hidden': mobilePanel !== 'visual' }">
-      <header class="visual-head"><div><div class="eyebrow">{{ activeSection === 'templates' ? 'TEMPLATE LIBRARY' : 'PROJECT SIGNALS' }}</div><h2>{{ activeSection === 'templates' ? '链路模板库' : (workspace.project?.name || '项目工作区') }}</h2></div><button class="icon-button" title="返回对话" @click="mobilePanel = 'chat'"><X :size="17" /></button></header>
+    <aside v-if="rightPanelOpen" class="visual-panel" :class="{ 'mobile-hidden': mobilePanel !== 'visual' }">
+      <header class="visual-head"><div><div class="eyebrow">{{ activeSection === 'templates' ? 'TEMPLATE LIBRARY' : 'PROJECT SIGNALS' }}</div><h2>{{ activeSection === 'templates' ? '链路模板库' : (workspace.project?.name || '项目工作区') }}</h2></div><button class="icon-button" title="关闭项目详情" @click="closeRightPanel"><X :size="17" /></button></header>
       <div v-if="activeSection === 'overview'" class="tabs"><button v-for="tab in panelTabs" :key="tab.id" :class="{ active: rightTab === tab.id }" @click="rightTab = tab.id"><component :is="tab.icon" :size="14" />{{ tab.label }}</button></div>
       <div class="visual-content">
         <template v-if="activeSection === 'overview' && rightTab === 'overview'">

@@ -135,6 +135,27 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return (await agentApi.proposeSpec(currentProjectId.value, { content, source_type: sourceType })).data
   }
 
+  async function initializeProject() {
+    if (!currentProjectId.value) return null
+    if (!conversation.value) await newConversation('项目初始化')
+    if (!conversation.value) return null
+    error.value = ''
+    try {
+      const response = await agentApi.initializeProject(currentProjectId.value, {
+        conversation_id: conversation.value.id,
+        request_id: crypto.randomUUID(),
+      })
+      project.value = (await agentApi.project(currentProjectId.value)).data
+      configuration.value = (await agentApi.configuration(currentProjectId.value)).data
+      conversation.value = (await agentApi.conversation(conversation.value.id)).data
+      conversations.value = (await agentApi.conversations(currentProjectId.value, true)).data
+      return response.data
+    } catch (e: any) {
+      error.value = e?.response?.data?.detail || '项目初始化失败'
+      throw e
+    }
+  }
+
   async function uploadDocument(filename: string, mediaType: string, content: string) {
     return (await agentApi.uploadDocument(currentProjectId.value, { filename, media_type: mediaType, content })).data
   }
@@ -274,7 +295,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   return {
     projects, templates, modelConfig, project, configuration, conversations, conversation, memories, activeRun, events, loading, error, currentProjectId,
     loadProjects, loadTemplates, loadModels, selectProject, createProject, createTemplate, templateDetail, publishTemplate, restoreTemplate, cloneTemplate,
-    publishSpec, restoreSpec, proposeSpec, uploadDocument, saveProjectAsTemplate,
+    publishSpec, restoreSpec, proposeSpec, initializeProject, uploadDocument, saveProjectAsTemplate,
     updateProject, archiveProject, newConversation, updateConversation, archiveConversation, restoreConversation, deleteConversation, openConversation, send, getRun,
     createResource, updateResource, archiveResource, testResource, loadConfiguration, runbooks, cancel, resume, approve, revoke,
   }
