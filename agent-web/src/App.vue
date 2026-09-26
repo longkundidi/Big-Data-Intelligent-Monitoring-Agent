@@ -31,6 +31,8 @@ const editingConversation = ref<any>(null)
 const conversationTitle = ref('')
 const selectedModelId = ref('')
 const selectedReasoningEffort = ref('')
+const selectedSlashCommand = ref('')
+const slashMenuOpen = ref(false)
 const selectedTemplate = ref<any>(null)
 const specDraft = ref<any>(null)
 const specChangeSummary = ref('更新链路规格')
@@ -48,6 +50,14 @@ const projectForm = reactive({ name: '', description: '', templateId: 'blank' })
 const resourceForm = reactive({ name: '', type: 'kafka', config: '' })
 const templateForm = reactive({ id: '', name: '', description: '', category: '自定义', changeSummary: '创建模板', spec: null as any })
 const copyData = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
+const slashCommands = [
+  { command: '/init', title: '初始化项目配置', description: '扫描项目目录并发布当前项目的新规格版本', icon: FolderSearch },
+]
+const slashOptions = computed(() => {
+  const query = input.value.trim().toLowerCase()
+  if (!query.startsWith('/')) return []
+  return slashCommands.filter((item) => item.command.startsWith(query))
+})
 
 const panelTabs = [
   { id: 'overview', label: '概览', icon: LayoutDashboard },
@@ -169,7 +179,16 @@ async function deleteConversation(item: any) {
 async function submit() {
   const value = input.value.trim()
   if (!value || workspace.activeRun?.status === 'running') return
+  if (slashMenuOpen.value && slashOptions.value.length) {
+    if (slashOptions.value[0].command !== value) {
+      chooseSlashCommand(slashOptions.value[0].command)
+      return
+    }
+    slashMenuOpen.value = false
+  }
   input.value = ''
+  selectedSlashCommand.value = ''
+  slashMenuOpen.value = false
   mobilePanel.value = 'chat'
   if (value === '/init') {
     try {
@@ -182,6 +201,12 @@ async function submit() {
   }
   await workspace.send(value, replay.value || undefined)
   replay.value = ''
+}
+
+function chooseSlashCommand(command: string) {
+  input.value = command
+  selectedSlashCommand.value = command
+  slashMenuOpen.value = false
 }
 
 function quick(value: string) { input.value = value; submit() }
@@ -394,6 +419,10 @@ onMounted(async () => {
 
 watch(() => [workspace.currentProjectId, workspace.conversation?.id, activeSection.value], syncRoute)
 watch(() => workspace.conversation?.id, () => syncModelSelection(workspace.conversation))
+watch(input, (value) => {
+  slashMenuOpen.value = value.trim().startsWith('/') && value !== selectedSlashCommand.value
+  if (value !== selectedSlashCommand.value) selectedSlashCommand.value = ''
+})
 </script>
 
 <template>
@@ -401,7 +430,6 @@ watch(() => workspace.conversation?.id, () => syncModelSelection(workspace.conve
     <aside class="sidebar" :class="{ 'mobile-hidden': mobilePanel !== 'projects' }">
       <div class="brand"><div class="brand-mark"><Sparkles :size="16" /></div><div><strong>StreamDoctor</strong><span>Agent workspace</span></div><button class="icon-button" title="工作区设置"><ChevronDown :size="15" /></button></div>
       <button class="new-project" @click="openProjectDialog()"><FolderPlus :size="16" /> 新建项目</button>
-      <button v-if="workspace.project" class="project-init" :disabled="workspace.activeRun?.status === 'running'" @click="quick('/init')"><FolderSearch :size="15" />扫描项目配置<code>/init</code></button>
       <button class="template-library-button" :class="{ active: activeSection === 'templates' }" @click="setSection('templates')"><Layers :size="15" />模板库<span>{{ workspace.templates.length }}</span></button>
       <div class="sidebar-label row-label"><span>项目</span><span class="muted-count">{{ workspace.projects.length }}</span></div>
       <div class="project-list">
@@ -432,6 +460,7 @@ watch(() => workspace.conversation?.id, () => syncModelSelection(workspace.conve
         </template>
       </section>
       <section class="composer-wrap"><div class="quick-actions"><button @click="quick('执行一次全链路健康巡检')"><Activity :size="14" />运行巡检</button><button @click="quick('根据我接下来描述的现象开始故障诊断')"><ShieldCheck :size="14" />故障诊断</button><button @click="openRecovery"><Wrench :size="14" />处置与恢复</button><label class="replay-toggle"><input v-model="replay" value="model_slow" type="checkbox" />回放模型变慢</label></div><div class="composer"><textarea v-model="input" rows="1" placeholder="描述异常现象、时间范围或想检查的组件…" @keydown.enter.exact.prevent="submit"></textarea><button class="send-button" :disabled="!input.trim() || workspace.activeRun?.status === 'running'" @click="submit"><Send :size="17" /></button></div><div class="model-bar"><div class="model-select"><Bot :size="12" /><select v-model="selectedModelId" :disabled="workspace.activeRun?.status === 'running'" title="选择会话模型" @change="changeModel"><option v-for="model in workspace.modelConfig.models" :key="model.id" :value="model.id">{{ model.name }}</option></select></div><div class="model-select"><Sparkles :size="12" /><select v-model="selectedReasoningEffort" :disabled="workspace.activeRun?.status === 'running'" title="选择推理强度" @change="changeReasoningEffort"><option v-for="effort in reasoningEfforts" :key="effort" :value="effort">{{ effort }}</option></select></div><span class="model-state" :class="{ configured: workspace.modelConfig.configured }">{{ workspace.modelConfig.configured ? 'API 已配置' : '规则降级模式' }}</span></div><div class="composer-foot"><span><ShieldCheck :size="12" />只读工具 · 证据可追溯</span><span>Enter 发送 · Shift + Enter 换行</span></div></section>
+      <div v-if="slashMenuOpen && slashOptions.length" class="slash-command-menu"><div class="slash-command-head"><SquareTerminal :size="13" /><span>命令</span><small>Enter 选择</small></div><button v-for="command in slashOptions" :key="command.command" @mousedown.prevent="chooseSlashCommand(command.command)"><span class="slash-command-icon"><component :is="command.icon" :size="16" /></span><span><strong>{{ command.command }} · {{ command.title }}</strong><small>{{ command.description }}</small></span></button></div>
     </main>
 
     <aside v-if="rightPanelOpen" class="visual-panel" :class="{ 'mobile-hidden': mobilePanel !== 'visual' }">
