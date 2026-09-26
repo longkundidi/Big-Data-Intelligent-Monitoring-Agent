@@ -18,5 +18,13 @@
   {"id":"R17","title":"结果入库停止","components":["sink"],"version":"all","body":"比较输出 Topic 与结果表的最新时间。如果输出消息持续增加但入库停止，优先检查 sink 作业和数据库。"},
   {"id":"R18","title":"观测指标不可用","components":["flink","kafka","model"],"version":"all","body":"记录失败的接口及时间段，报告证据缺口。观测失败不能当作组件健康或停止。"},
   {"id":"R19","title":"资源使用率过高","components":["flink","model"],"version":"all","body":"使用真实采集 CPU 与内存，与同一时间段延迟、吞吐和重启事件比较；不使用固定演示值判断健康。"},
-  {"id":"R20","title":"诊断后恢复验证","components":["flink","kafka","model","sink"],"version":"all","body":"处理后重新读取状态、输入输出速率、消费积压趋势、服务延迟和结果写入，比较同一链路的处理前后证据。"}
+  {"id":"R20","title":"诊断后恢复验证","components":["flink","kafka","model","sink"],"version":"all","body":"处理后重新读取状态、输入输出速率、消费积压趋势、服务延迟和结果写入，比较同一链路的处理前后证据。"},
+  {"id":"R21","title":"HTTP 服务不可用或持续返回 5xx","components":["http","gateway","api"],"version":"all","body":"先确认健康端点、DNS、端口和状态码，再按调用拓扑检查最先不可用的依赖。关联最近发布和错误日志，不把单次探测失败直接扩展为整条链路宕机。"},
+  {"id":"R22","title":"服务 P95 延迟显著升高","components":["http","api"],"version":"all","body":"对比正常基线、请求量、错误率和下游依赖耗时，确认延迟首次上升的组件。分位值需要足够样本，避免用单次健康探测替代业务延迟。"},
+  {"id":"R23","title":"数据库连接失败","components":["mysql","postgresql","clickhouse","mongodb"],"version":"all","body":"区分 TCP 不可达、连接池耗尽、认证失败和实例只读。先验证网络与端口，再查看数据库连接数和应用错误，禁止诊断 Agent 执行写 SQL。"},
+  {"id":"R24","title":"数据库查询或写入变慢","components":["mysql","postgresql","clickhouse"],"version":"all","body":"关联查询延迟、连接池等待、慢查询、锁等待和磁盘利用率；确认瓶颈发生在数据库还是调用端。处理后使用同一查询和时间窗口复查。"},
+  {"id":"R25","title":"Airflow 调度任务失败","components":["airflow","scheduler"],"version":"all","body":"检查 DAG Run 和 Task Instance 状态、重试次数、首次失败日志及上游依赖。区分任务失败、仍在排队和调度器不可用。"},
+  {"id":"R26","title":"Spark 批处理运行时间异常","components":["spark","batch"],"version":"all","body":"比较 stage 耗时、shuffle、数据倾斜、executor 丢失和资源利用率；用历史同批次基线判断是否退化，并检查上游数据量变化。"},
+  {"id":"R27","title":"数据质量或 Schema 异常","components":["data-quality","source"],"version":"all","body":"统计拒绝记录、Schema 校验错误、空值率和字段分布变化，保留脱敏样本。确认数据契约版本和首次异常批次后再判断责任组件。"},
+  {"id":"R28","title":"Prometheus 或观测链路不可用","components":["prometheus","observability"],"version":"all","body":"记录查询失败、采集目标状态和缺失时间段。观测缺失必须返回未知；可使用健康端点和日志交叉验证，但不能据此宣称业务健康。"}
 ]

@@ -22,7 +22,8 @@ class ProjectUpdate(BaseModel):
 
 class ResourceCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    type: Literal["kafka", "flink", "model", "mysql", "log", "business", "custom"]
+    type: Literal["kafka", "flink", "model", "mysql", "postgresql", "redis", "clickhouse", "mongodb",
+                  "prometheus", "api", "gateway", "airflow", "spark", "log", "business", "custom"]
     config: dict[str, Any] = Field(default_factory=dict)
 
 

@@ -1,0 +1,25 @@
+{
+  "dataset": "StreamDoctor Cross-Domain Seed",
+  "version": "1.0",
+  "case_count": 20,
+  "metrics": {
+    "top1_accuracy": 1.0,
+    "top3_accuracy": 1.0,
+    "evidence_support_rate": 1.0,
+    "normal_false_positive_rate": 0.0,
+    "abstention_accuracy": 1.0,
+    "tool_precision": 0.6923,
+    "tool_recall": 1.0,
+    "mean_tool_calls": 1.95
+  },
+  "thresholds": {
+    "top1_accuracy": 0.9,
+    "top3_accuracy": 0.95,
+    "evidence_support_rate": 1.0,
+    "normal_false_positive_rate_max": 0.0,
+    "abstention_accuracy": 1.0,
+    "tool_precision": 0.6,
+    "tool_recall": 0.9
+  },
+  "limitation": "Synthetic, rule-adjacent regression seed. Do not report as production accuracy."
+}

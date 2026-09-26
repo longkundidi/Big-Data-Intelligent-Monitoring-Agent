@@ -2,6 +2,7 @@ import json
 import math
 import os
 import re
+import socket
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -10,7 +11,9 @@ import httpx
 from kafka import KafkaConsumer, TopicPartition
 
 
-TOOLS = ("topology", "flink_status", "flink_metrics", "kafka_offsets", "model_health", "logs", "runbook")
+TOOLS = ("topology", "flink_status", "flink_metrics", "kafka_offsets", "model_health", "logs", "runbook",
+         "service_health", "dependency_health", "prometheus_metrics")
+LEGACY_TOOLS = TOOLS[:7]
 
 
 class Collectors:
@@ -293,6 +296,127 @@ class Collectors:
             state = "degraded"
         metrics = data.get("metrics", data)
         return {"state": state, "metrics": metrics, "probe_status": probe_status}
+
+    def service_health(self, question):
+        """Probe HTTP endpoints declared in the versioned project specification."""
+        if not self.spec:
+            raise RuntimeError("项目规格中没有可探测的 HTTP 服务")
+        hosts = {item["id"]: item for item in self.spec.get("hosts", [])}
+        services = []
+        for service in self.spec.get("services", []):
+            protocol = str(service.get("protocol") or "").lower()
+            config = service.get("config") or {}
+            if protocol not in {"http", "https"} or not config.get("health_path"):
+                continue
+            host = hosts.get(service.get("host_id"), {})
+            address = host.get("address")
+            if not address:
+                services.append({"service_id": service["id"], "name": service.get("name"),
+                                 "type": service.get("type"), "state": "unavailable",
+                                 "error": "项目规格未填写主机地址"})
+                continue
+            url = "{}://{}{}{}".format(protocol, address,
+                                         ":" + str(service["port"]) if service.get("port") else "",
+                                         str(config["health_path"])[:200])
+            started = time.perf_counter()
+            try:
+                with httpx.Client(timeout=4, follow_redirects=False) as client:
+                    response = client.get(url)
+                latency = round((time.perf_counter() - started) * 1000, 2)
+                state = "healthy" if 200 <= response.status_code < 400 else "unhealthy"
+                services.append({"service_id": service["id"], "name": service.get("name"),
+                                 "type": service.get("type"), "state": state,
+                                 "status_code": response.status_code, "latency_ms": latency,
+                                 "latency_threshold_ms": config.get("latency_threshold_ms", 1000)})
+            except Exception as exc:
+                services.append({"service_id": service["id"], "name": service.get("name"),
+                                 "type": service.get("type"), "state": "unavailable",
+                                 "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+                                 "error": str(exc)[:160]})
+        if not services:
+            raise RuntimeError("项目规格中没有配置 health_path 的 HTTP 服务")
+        return {"services": services, "healthy": sum(item["state"] == "healthy" for item in services),
+                "unhealthy": sum(item["state"] != "healthy" for item in services)}
+
+    def dependency_health(self, question):
+        """Perform bounded TCP checks for data stores declared by the project."""
+        if not self.spec:
+            raise RuntimeError("项目规格中没有可探测的依赖服务")
+        supported = {"mysql", "postgresql", "redis", "clickhouse", "mongodb"}
+        hosts = {item["id"]: item for item in self.spec.get("hosts", [])}
+        services = []
+        for service in self.spec.get("services", []):
+            if str(service.get("type", "")).lower() not in supported:
+                continue
+            host = hosts.get(service.get("host_id"), {})
+            address, port = host.get("address"), service.get("port")
+            if not address or not port:
+                services.append({"service_id": service["id"], "name": service.get("name"),
+                                 "type": service.get("type"), "state": "unavailable",
+                                 "error": "项目规格缺少主机地址或端口"})
+                continue
+            started = time.perf_counter()
+            try:
+                with socket.create_connection((address, int(port)), timeout=3):
+                    pass
+                services.append({"service_id": service["id"], "name": service.get("name"),
+                                 "type": service.get("type"), "state": "healthy",
+                                 "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+                                 "latency_threshold_ms": (service.get("config") or {}).get("latency_threshold_ms", 500)})
+            except OSError as exc:
+                services.append({"service_id": service["id"], "name": service.get("name"),
+                                 "type": service.get("type"), "state": "unavailable",
+                                 "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+                                 "error": str(exc)[:160]})
+        if not services:
+            raise RuntimeError("项目规格中没有支持的数据库或缓存服务")
+        return {"services": services, "healthy": sum(item["state"] == "healthy" for item in services),
+                "unhealthy": sum(item["state"] != "healthy" for item in services)}
+
+    def prometheus_metrics(self, question):
+        """Execute only PromQL queries stored in the project specification."""
+        if not self.spec:
+            raise RuntimeError("项目规格中没有 Prometheus 服务")
+        hosts = {item["id"]: item for item in self.spec.get("hosts", [])}
+        service = next((item for item in self.spec.get("services", [])
+                        if str(item.get("type", "")).lower() == "prometheus"), None)
+        if not service:
+            raise RuntimeError("项目规格中没有 Prometheus 服务")
+        host = hosts.get(service.get("host_id"), {})
+        if not host.get("address"):
+            raise RuntimeError("Prometheus 服务未配置主机地址")
+        queries = (service.get("config") or {}).get("queries", {})
+        if not isinstance(queries, dict) or not queries:
+            raise RuntimeError("Prometheus 服务未配置受控 queries")
+        protocol = str(service.get("protocol") or "http").lower()
+        if protocol not in {"http", "https"}:
+            raise RuntimeError("Prometheus 仅支持 http/https 协议")
+        base_url = "{}://{}{}".format(protocol, host["address"],
+                                       ":" + str(service["port"]) if service.get("port") else "")
+        signals = []
+        with httpx.Client(timeout=5) as client:
+            for name, definition in list(queries.items())[:12]:
+                definition = {"query": definition} if isinstance(definition, str) else definition
+                query = definition.get("query") if isinstance(definition, dict) else None
+                if not query or len(query) > 2000:
+                    continue
+                response = client.get(base_url.rstrip("/") + "/api/v1/query", params={"query": query})
+                response.raise_for_status()
+                body = response.json()
+                results = body.get("data", {}).get("result", []) if body.get("status") == "success" else []
+                values = []
+                for result in results[:100]:
+                    try:
+                        values.append(float(result.get("value", [None, None])[1]))
+                    except (TypeError, ValueError, IndexError):
+                        pass
+                value = max(values) if values else None
+                threshold = definition.get("threshold")
+                signals.append({"name": str(name)[:120], "value": value, "threshold": threshold,
+                                "unit": definition.get("unit"), "component": definition.get("component", "project"),
+                                "status": "warning" if value is not None and threshold is not None and value > float(threshold) else "ok",
+                                "series_count": len(values)})
+        return {"signals": signals, "query_count": len(signals), "provider": "prometheus"}
 
     def logs(self, question):
         path = Path(os.environ.get("AGENT_LOG_PATH", ""))

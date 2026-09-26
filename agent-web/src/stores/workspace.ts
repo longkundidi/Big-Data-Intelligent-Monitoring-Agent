@@ -6,6 +6,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const projects = ref<any[]>([])
   const templates = ref<any[]>([])
   const modelConfig = ref<any>({ configured: false, models: [], default_model: '', default_reasoning_effort: '' })
+  const benchmark = ref<any>(null)
   const project = ref<any>(null)
   const configuration = ref<any>(null)
   const conversations = ref<any[]>([])
@@ -64,6 +65,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function loadModels() {
     modelConfig.value = (await agentApi.models()).data
     return modelConfig.value
+  }
+
+  async function loadBenchmark() {
+    benchmark.value = (await agentApi.benchmark()).data
+    return benchmark.value
   }
 
   async function selectProject(id: string) {
@@ -293,8 +299,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function revoke(id: string) { await agentApi.revokeMemory(currentProjectId.value, id); memories.value = (await agentApi.memories(currentProjectId.value)).data }
 
   return {
-    projects, templates, modelConfig, project, configuration, conversations, conversation, memories, activeRun, events, loading, error, currentProjectId,
-    loadProjects, loadTemplates, loadModels, selectProject, createProject, createTemplate, templateDetail, publishTemplate, restoreTemplate, cloneTemplate,
+    projects, templates, modelConfig, benchmark, project, configuration, conversations, conversation, memories, activeRun, events, loading, error, currentProjectId,
+    loadProjects, loadTemplates, loadModels, loadBenchmark, selectProject, createProject, createTemplate, templateDetail, publishTemplate, restoreTemplate, cloneTemplate,
     publishSpec, restoreSpec, proposeSpec, initializeProject, uploadDocument, saveProjectAsTemplate,
     updateProject, archiveProject, newConversation, updateConversation, archiveConversation, restoreConversation, deleteConversation, openConversation, send, getRun,
     createResource, updateResource, archiveResource, testResource, loadConfiguration, runbooks, cancel, resume, approve, revoke,

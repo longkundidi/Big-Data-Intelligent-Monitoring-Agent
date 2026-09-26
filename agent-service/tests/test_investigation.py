@@ -52,7 +52,8 @@ def test_planner_follows_dependencies_and_stops_with_reason():
 
     assert sequence[:5] == ["get_project_topology", "get_flink_status", "get_kafka_offsets",
                             "get_flink_metrics", "get_model_health"]
-    assert sequence[-2:] == ["get_component_logs", "search_runbooks"]
+    assert sequence[-1] == "search_runbooks"
+    assert "get_component_logs" not in sequence
     model_hypothesis = next(item for item in planner.hypotheses(collected, "为什么变慢", "replay")
                             if item["code"] == "model_slow")
     assert model_hypothesis["status"] == "supported"

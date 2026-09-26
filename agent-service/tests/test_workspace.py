@@ -167,7 +167,8 @@ def test_project_resources_and_navigation_data_are_scoped(tmp_path, monkeypatch)
         assert configuration.status_code == 200
         assert configuration.json()["status"] == "partial"
         missing = {item["key"] for item in configuration.json()["items"] if item["status"] == "missing"}
-        assert {"kafka_servers", "flink_url", "model_health_url"}.issubset(missing)
+        assert missing == {"edges"}
+        assert not {"kafka_servers", "flink_url", "model_health_url"}.intersection(missing)
         assert configuration.json()["files"][0]["location"] == "SQLite project_spec_versions"
 
         templated = client.post("/api/agent/projects", json={

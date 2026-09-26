@@ -4,6 +4,7 @@ const api = axios.create({ baseURL: '/api/agent', timeout: 15000 })
 
 export const agentApi = {
   models: () => api.get('/models'),
+  benchmark: (split?: 'dev' | 'test') => api.get('/benchmark', { params: { split } }),
   templates: () => api.get('/templates'),
   template: (id: string, version?: number) => api.get(`/templates/${id}`, { params: { version } }),
   createTemplate: (payload: Record<string, unknown>) => api.post('/templates', payload),

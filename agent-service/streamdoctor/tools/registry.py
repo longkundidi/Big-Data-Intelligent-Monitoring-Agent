@@ -12,6 +12,7 @@ from ..collectors import Collectors
 from ..configuration import inspect_configuration
 from ..runbooks import search as search_runbooks
 from ..specs import spec_topology
+from ..toolsets import catalog, enabled_tools
 
 
 class ToolError(RuntimeError):
@@ -36,6 +37,8 @@ class ToolRegistry:
         self.run_id = run_id
         self.replay = replay
         self.collector = Collectors(settings, store, replay=replay, project_id=project_id)
+        self.project_spec = self.collector.spec or {}
+        self.enabled_diagnostic_tools = enabled_tools(self.project_spec)
         self._cache: dict[str, tuple[float, dict[str, Any]]] = {}
         self.specs = self._build_specs()
 
@@ -47,6 +50,9 @@ class ToolRegistry:
             "get_flink_metrics": ToolSpec("get_flink_metrics", "读取 Flink 输入输出、忙碌度和反压指标", lambda query="", **kwargs: self._observe("flink_metrics", query, **kwargs)),
             "get_kafka_offsets": ToolSpec("get_kafka_offsets", "读取 Kafka Topic 位点和消费积压", lambda query="", **kwargs: self._observe("kafka_offsets", query, **kwargs)),
             "get_model_health": ToolSpec("get_model_health", "读取模型服务健康、延迟和错误统计", lambda query="", **kwargs: self._observe("model_health", query, **kwargs)),
+            "get_service_health": ToolSpec("get_service_health", "探测项目规格中受控 HTTP 服务的健康与延迟", lambda query="", **kwargs: self._observe("service_health", query, **kwargs)),
+            "get_dependency_health": ToolSpec("get_dependency_health", "检查项目规格中数据库和缓存的 TCP 可达性", lambda query="", **kwargs: self._observe("dependency_health", query, **kwargs)),
+            "get_prometheus_metrics": ToolSpec("get_prometheus_metrics", "执行项目规格预先保存的 PromQL 并返回标准信号", lambda query="", **kwargs: self._observe("prometheus_metrics", query, **kwargs)),
             "get_component_logs": ToolSpec("get_component_logs", "读取服务端配置的有限日志片段", lambda query="", **kwargs: self._observe("logs", query, **kwargs)),
             "get_business_summary": ToolSpec("get_business_summary", "读取已配置业务接口的只读摘要", self._business),
             "search_runbooks": ToolSpec("search_runbooks", "检索排障文档和审核案例", self._runbooks),
@@ -62,7 +68,7 @@ class ToolRegistry:
         current = self.store.project_spec(self.project_id)
         if current:
             return {**spec_topology(current["spec"], self.project_id), "spec_version_id": current["id"],
-                    "spec_version": current["version"]}
+                    "spec_version": current["version"], "toolsets": catalog(current["spec"])}
         base = self.settings.topology()
         if not project:
             return {"id": self.project_id, "nodes": [], "edges": []}
@@ -133,7 +139,9 @@ class ToolRegistry:
         return {"status": "ok", "artifact_id": artifact["id"], "artifact": artifact}
 
     def _topology_artifact(self, **_):
-        artifact = self.store.create_artifact(self.run_id, "topology", self.settings.topology())
+        current = self.store.project_spec(self.project_id)
+        data = spec_topology(current["spec"], self.project_id) if current else self.settings.topology()
+        artifact = self.store.create_artifact(self.run_id, "topology", data)
         return {"status": "ok", "artifact_id": artifact["id"], "artifact": artifact}
 
     def _propose_memory(self, kind="fact", content="", source_ids=None, **_):

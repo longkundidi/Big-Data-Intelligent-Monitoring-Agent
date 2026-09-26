@@ -11,6 +11,7 @@ from .agents import ExecutorAgent, ReviewerAgent
 from .coordination import AgentCoordinator
 from .context import ContextAssembler
 from .diagnosis import report_for
+from .general_diagnosis import combine_reports, general_report
 from .investigation import EvidencePlanner, causal_analysis
 from .memory import MemoryManager
 from .model_catalog import validate_selection
@@ -110,6 +111,8 @@ class AgentRuntime:
 
     def _answer(self, question, evidence, context):
         report = report_for(evidence, question, "live")
+        generic = general_report(evidence, question, "live")
+        report = combine_reports(report, generic)
         classification = report.get("classification")
         answer = report.get("summary", "诊断完成") + "。"
         if report.get("facts"):
@@ -237,7 +240,10 @@ class AgentRuntime:
                 called = set()
                 mode = "replay" if replay else "live"
                 while True:
-                    decision = self.planner.decide(question, evidence, called, round_number, mode)
+                    decision = self.planner.decide(
+                        question, evidence, called, round_number, mode,
+                        capabilities=registry.enabled_diagnostic_tools,
+                    )
                     self._emit(run_id, "investigation_decision", {
                         **decision, "round": round_number + 1, "agent_role": "reviewer",
                     })

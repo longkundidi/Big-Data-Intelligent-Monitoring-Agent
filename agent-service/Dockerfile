@@ -16,6 +16,7 @@ RUN pip install --index-url https://mirrors.aliyun.com/pypi/simple/ \
 COPY streamdoctor ./streamdoctor
 COPY topology.json runbooks.json ./
 COPY replays ./replays
+COPY benchmark ./benchmark
 
 RUN mkdir -p /data
 

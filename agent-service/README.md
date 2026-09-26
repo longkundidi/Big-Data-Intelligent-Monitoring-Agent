@@ -1,8 +1,24 @@
 # StreamDoctor
 
-Kafka/Flink 运行诊断 Agent。运行时分为审查智能体和执行智能体：审查者只读取观测、发现问题并提出建议；执行者只接受用户明确提出的受控动作，并通过隔离执行器操作白名单组件。未配置模型时仍可使用规则流程和离线回放；配置模型后由审查智能体根据证据生成回答，模型输出本身不能授予执行权限。
+面向数据平台、批处理、微服务和存储依赖的运行诊断 Agent。运行时分为审查智能体和执行智能体：审查者只读取观测、发现问题并提出建议；执行者只接受用户明确提出的受控动作，并通过隔离执行器操作白名单组件。未配置模型时仍可使用规则流程和离线回放；配置模型后由审查智能体根据证据生成回答，模型输出本身不能授予执行权限。
 
 工作区诊断采用有预算的假设驱动循环。审查智能体先确认拓扑和 Flink 作业状态，再根据已有证据决定是否继续检查 Kafka 位点、算子吞吐与反压、模型健康、日志和排障文档；作业已停止时会提前转向异常与处置依据。每轮保存“为什么调用该工具”、候选假设状态和最终停止原因。报告同时生成主张与证据关系、同一观测窗口的信号时间线和故障传播链；传播链明确标为相关性推断，不把同窗信号误报为统计因果。Flink 证据包含异常、Checkpoint、吞吐、忙碌度和反压摘要，Kafka 证据包含积压变化、分区倾斜与输入输出 Topic 位点变化。
+
+## 通用 Toolset 与观测语义
+
+项目规格中的服务类型和 `diagnostics.tools` 决定本次运行启用的 Toolset。除 Kafka/Flink 外，首批适配器包括受控 HTTP 健康检查、数据库/缓存 TCP 可达性和项目预存 PromQL。模型不能传入 URL、PromQL、SQL 或命令；查询目标和 PromQL 必须先进入版本化项目规格。各适配器把结果归一为可用性、延迟、错误率、资源利用率、队列、任务状态和数据质量信号，再统一分类为依赖不可用、延迟退化、错误率升高、资源饱和、队列积压、调度失败、数据质量和存储瓶颈。
+
+这一结构借鉴 HolmesGPT 的可插拔 Data Source/Toolset，而不是复制其代码；Agent 运行事件保留 plan、tool 和 workflow 语义，便于后续映射 OpenTelemetry GenAI semantic conventions。评估同时检查最终根因和工具轨迹，避免只看回答文本。参考：[HolmesGPT Data Sources](https://holmesgpt.dev/dev/data-sources/)、[OpenTelemetry GenAI agent spans](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-agent-spans.md)、[LangSmith agent evaluation](https://www.langchain.com/langsmith/evaluation)。
+
+## 跨域评估集
+
+`benchmark/cases.json` 当前包含 20 个版本化合成案例，覆盖微服务、网关、模型服务、数据库、缓存、批处理、计算资源、消息积压、数据质量和观测缺失，并分为 `dev` 与 `test`。每个案例保存期望根因、证据快照和必要工具；`EvidencePlanner` 会实际运行并生成工具轨迹。
+
+```bash
+python -m streamdoctor.benchmark
+```
+
+当前种子集结果为 Top-1 100%、Top-3 100%、证据支持率 100%、正常误报率 0%、证据缺失保留判断率 100%、必要工具召回率 100%、工具精确率 69.23%，平均 1.95 次诊断工具调用。上述数字只用于确定性回归，合成数据与规则同源，不能作为生产准确率；后续应增加独立故障注入采集的盲测集。测试对这些指标设置最低阈值，防止改动静默降低能力。
 
 工作区 API 还提供项目、持续会话、短期上下文、项目级长期记忆提议、Run 执行循环、SSE 事件和可视化 Artifact。独立网页在仓库的 `agent-web` 目录中，现有业务 Vue 页面仍保留兼容入口。
 

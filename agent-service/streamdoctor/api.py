@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .collectors import Collectors
+from .benchmark import evaluate as evaluate_benchmark
 from .configuration import inspect_configuration
 from .config import ROOT, Settings
 from .diagnosis import Diagnostician
@@ -732,6 +733,13 @@ def workspace_runbooks(project_id: str, query: str = "", component: str | None =
 def workspace_models():
     """Return the safe model catalog without exposing credentials or endpoint secrets."""
     return public_catalog(settings)
+
+
+@app.get("/api/agent/benchmark")
+def workspace_benchmark(split: str | None = None):
+    if split not in {None, "dev", "test"}:
+        raise HTTPException(422, "split 只能是 dev 或 test")
+    return evaluate_benchmark(split)
 
 
 @app.get("/api/agent/projects/{project_id}/conversations")

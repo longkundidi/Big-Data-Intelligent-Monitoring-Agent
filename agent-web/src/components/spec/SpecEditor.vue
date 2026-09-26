@@ -19,6 +19,12 @@ const hosts = computed(() => local.value.hosts || (local.value.hosts = []))
 const services = computed(() => local.value.services || (local.value.services = []))
 const nodes = computed(() => local.value.nodes || (local.value.nodes = []))
 const edges = computed(() => local.value.edges || (local.value.edges = []))
+const serviceTypes = [
+  ['kafka', 'Kafka'], ['flink', 'Flink'], ['spark', 'Spark'], ['airflow', 'Airflow'],
+  ['api', 'HTTP API'], ['gateway', 'API 网关'], ['model', '模型服务'], ['prometheus', 'Prometheus'],
+  ['mysql', 'MySQL'], ['postgresql', 'PostgreSQL'], ['redis', 'Redis'], ['clickhouse', 'ClickHouse'],
+  ['mongodb', 'MongoDB'], ['custom', '自定义'],
+]
 
 function id(prefix: string) { return `${prefix}-${crypto.randomUUID().slice(0, 8)}` }
 function addHost() { hosts.value.push({ id: id('host'), name: '新服务器', environment: 'unknown', address: '' }) }
@@ -47,8 +53,8 @@ function setConfig(target: any, event: Event) {
     </section>
 
     <section class="spec-section">
-      <header><div><strong>服务资源</strong><span>Kafka、Flink、模型、数据库等服务</span></div><button type="button" @click="addService"><Plus :size="13" />添加</button></header>
-      <div v-if="services.length" class="spec-items"><div v-for="(service, index) in services" :key="service.id" class="spec-item"><div class="spec-item-grid"><label>名称<input v-model="service.name" /></label><label>类型<select v-model="service.type"><option value="kafka">Kafka</option><option value="flink">Flink</option><option value="model">模型服务</option><option value="mysql">MySQL</option><option value="redis">Redis</option><option value="custom">自定义</option></select></label><label>服务器<select v-model="service.host_id"><option :value="null">未指定</option><option v-for="host in hosts" :key="host.id" :value="host.id">{{ host.name }}</option></select></label><label>端口<input v-model.number="service.port" type="number" min="1" max="65535" /></label><label>协议<input v-model="service.protocol" /></label><label>版本<input v-model="service.version" /></label></div><label class="wide-field">扩展配置 JSON<input :value="JSON.stringify(service.config || {})" @change="setConfig(service, $event)" /></label><button type="button" class="spec-delete" title="删除服务" @click="remove(services, index)"><Trash2 :size="13" /></button></div></div><p v-else class="spec-empty">尚未添加服务。</p>
+      <header><div><strong>服务资源</strong><span>流处理、批处理、API、观测、数据库与缓存</span></div><button type="button" @click="addService"><Plus :size="13" />添加</button></header>
+      <div v-if="services.length" class="spec-items"><div v-for="(service, index) in services" :key="service.id" class="spec-item"><div class="spec-item-grid"><label>名称<input v-model="service.name" /></label><label>类型<select v-model="service.type"><option v-for="item in serviceTypes" :key="item[0]" :value="item[0]">{{ item[1] }}</option></select></label><label>服务器<select v-model="service.host_id"><option :value="null">未指定</option><option v-for="host in hosts" :key="host.id" :value="host.id">{{ host.name }}</option></select></label><label>端口<input v-model.number="service.port" type="number" min="1" max="65535" /></label><label>协议<input v-model="service.protocol" /></label><label>版本<input v-model="service.version" /></label></div><label class="wide-field">扩展配置 JSON<input :value="JSON.stringify(service.config || {})" @change="setConfig(service, $event)" /></label><button type="button" class="spec-delete" title="删除服务" @click="remove(services, index)"><Trash2 :size="13" /></button></div></div><p v-else class="spec-empty">尚未添加服务。</p>
     </section>
 
     <section class="spec-section">

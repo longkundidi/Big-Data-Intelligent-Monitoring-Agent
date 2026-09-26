@@ -16,6 +16,10 @@ def test_api_replay_recheck_feedback_and_sse(tmp_path, monkeypatch):
     monkeypatch.setattr(api, "store", store)
     monkeypatch.setattr(api, "diagnostician", Diagnostician(settings, store))
     with TestClient(api.app) as client:
+        benchmark = client.get("/api/agent/benchmark").json()
+        assert benchmark["metrics"]["cases"] >= 20
+        assert benchmark["metrics"]["tool_recall"] >= 0.9
+        assert client.get("/api/agent/benchmark?split=invalid").status_code == 422
         assert client.get("/api/agent/topology").json()["id"] == "elevator-regtcn"
         scenarios = client.get("/api/agent/replays").json()
         assert len(scenarios) == 7 and {item["id"] for item in scenarios} == set(api.REPLAY_NAMES)

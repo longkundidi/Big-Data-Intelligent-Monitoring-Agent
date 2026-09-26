@@ -222,6 +222,12 @@ button { cursor: pointer; }
 .causal-timeline small { margin-top: 3px; color: #778699; font-size: 9px; }
 .causal-timeline time { color: #536174; font-size: 8px; }
 .analysis-disclaimer { color: #5e6c7e; font-size: 8px; line-height: 1.5; margin: 8px 2px 0; }
+.benchmark-panel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.benchmark-panel > div { min-height: 58px; padding: 10px; border: 1px solid #29384a; border-radius: 7px; background: #141c27; }
+.benchmark-panel strong, .benchmark-panel span { display: block; }
+.benchmark-panel strong { color: #cce2d1; font-size: 17px; font-weight: 500; }
+.benchmark-panel span { margin-top: 4px; color: #748397; font-size: 9px; }
+.benchmark-panel p { grid-column: 1 / -1; margin: 2px; color: #657387; font-size: 8px; line-height: 1.5; }
 .topology-card { border: 1px solid #29384a; border-radius: 8px; background: #131b25; padding: 15px 13px; }
 .flow-node { border: 1px solid #33455a; border-radius: 7px; padding: 10px; position: relative; }
 .flow-node span { font-size: 9px; color: #697b8f; }
