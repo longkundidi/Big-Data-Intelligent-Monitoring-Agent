@@ -91,3 +91,31 @@ def test_probe_reports_unavailable_without_using_persistent_db(tmp_path):
     result = check(settings)
     assert all(value["status"] == "unavailable" for value in result.values())
     assert not settings.db_path.exists()
+
+
+def test_flink_metrics_include_operator_summary(tmp_path, monkeypatch):
+    settings, store = configured(tmp_path, flink_url="http://flink.test")
+    collector = Collectors(settings, store)
+
+    def flink(path):
+        if path == "/jobs/overview":
+            return {"jobs": [{"jid": "job-1", "name": "algorithm_REGTCN", "state": "RUNNING"}]}
+        if path == "/jobs/job-1":
+            return {"vertices": [{"id": "v1", "name": "source", "status": "RUNNING"},
+                                 {"id": "v2", "name": "inference", "status": "RUNNING"}]}
+        if "/metrics?get=" in path:
+            backpressure = "720" if "/v2/" in path else "0"
+            return [{"id": "numRecordsInPerSecond", "value": "2.5"},
+                    {"id": "numRecordsOutPerSecond", "value": "1.5"},
+                    {"id": "busyTimeMsPerSecond", "value": "900"},
+                    {"id": "backPressuredTimeMsPerSecond", "value": backpressure}]
+        raise AssertionError(path)
+
+    monkeypatch.setattr(collector, "_flink", flink)
+    status, payload, _, _ = collector.collect("flink_metrics")
+    assert status == "ok"
+    assert payload["summary"] == {
+        "vertex_count": 2, "observed_vertices": 2, "input_rate_total": 5.0,
+        "output_rate_total": 3.0, "max_backpressure_ms_per_second": 720.0,
+        "max_busy_ms_per_second": 900.0, "backpressured_vertices": 1,
+    }

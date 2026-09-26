@@ -4,7 +4,7 @@ import {
   Activity, AlertTriangle, Archive, BookOpen, Bot, CheckCircle2, ChevronDown, CircleStop,
   Copy, Database, FileText, FolderPlus, FolderSearch, GitBranch, History, Layers, LayoutDashboard,
   MessageSquare, Pencil, Plus, PlugZap, RefreshCw, RotateCcw, Save, Search, Send, Server,
-  PanelRightOpen, ShieldCheck, Sparkles, SquareTerminal, Trash2, Upload, Waypoints, Wrench, X,
+  PanelRightOpen, ScanSearch, ShieldCheck, Sparkles, SquareTerminal, Trash2, Upload, Waypoints, Wrench, X,
 } from 'lucide-vue-next'
 import { useWorkspaceStore } from './stores/workspace'
 import MiniChart from './components/visual/MiniChart.vue'
@@ -63,6 +63,7 @@ const panelTabs = [
   { id: 'overview', label: '概览', icon: LayoutDashboard },
   { id: 'topology', label: '拓扑', icon: GitBranch },
   { id: 'metrics', label: '指标', icon: Activity },
+  { id: 'analysis', label: '分析', icon: ScanSearch },
   { id: 'evidence', label: '证据', icon: ShieldCheck },
 ]
 const sections: Array<{ id: Section; label: string; icon: any }> = [
@@ -87,6 +88,7 @@ const activeConversations = computed(() => workspace.conversations.filter((item:
 const archivedConversations = computed(() => workspace.conversations.filter((item: any) => item.status === 'archived'))
 const proposedMemories = computed(() => workspace.memories.filter((item: any) => item.status === 'proposed'))
 const chartArtifact = computed(() => workspace.activeRun?.artifacts?.find((item: any) => item.kind === 'chart'))
+const analysisArtifact = computed(() => workspace.activeRun?.artifacts?.find((item: any) => item.kind === 'report' && item.data?.view === 'causal_analysis'))
 const topologyNodes = computed(() => workspace.project?.topology?.nodes || [])
 const resources = computed(() => workspace.project?.resources || [])
 const activeResourceCount = computed(() => resources.value.filter((item: any) => item.status !== 'archived').length)
@@ -495,6 +497,16 @@ watch(input, (value) => {
         </template>
         <template v-else-if="activeSection === 'overview' && rightTab === 'metrics'">
           <div class="section-head"><span>最近运行指标</span><span class="muted-count">{{ chartArtifact ? chartArtifact.data.metric : '等待 Artifact' }}</span></div><div v-if="chartArtifact" class="chart-card"><div class="chart-card-head"><strong>{{ chartArtifact.data.metric === 'lag' ? 'Kafka 消费积压' : chartArtifact.data.metric }}</strong><span>来源：{{ chartArtifact.source_evidence_ids.length }} 条证据</span></div><MiniChart :points="chartArtifact.data.series" /></div><div v-else class="metric-placeholder"><Activity :size="22" /><strong>运行一次检查后显示趋势</strong><p>Agent 会把带时间范围的指标 Artifact 固定在这里。</p><button @click="quick('查看最近的积压和吞吐趋势')">请求趋势</button></div>
+        </template>
+        <template v-else-if="activeSection === 'overview' && rightTab === 'analysis'">
+          <div class="section-head"><span>假设驱动分析</span><span class="muted-count">{{ latestReport?.hypotheses?.length || 0 }} 个候选</span></div>
+          <div v-if="latestReport?.hypotheses?.length" class="hypothesis-list"><div v-for="item in latestReport.hypotheses" :key="item.code" class="hypothesis-item" :class="item.status"><span class="hypothesis-state">{{ item.status === 'supported' ? '支持' : item.status === 'not_supported' ? '未支持' : item.status === 'unknown' ? '未知' : '待查' }}</span><div><strong>{{ item.title }}</strong><small v-if="item.support_evidence_ids?.length">证据 {{ item.support_evidence_ids.map((id: string) => `#${id.slice(0, 8)}`).join(' · ') }}</small><small v-else-if="item.unavailable_sources?.length">观测不可用：{{ item.unavailable_sources.join('、') }}</small><small v-else>{{ item.verify }}</small></div></div></div>
+          <div class="section-head"><span>故障传播链</span><span class="muted-count">相关性推断</span></div>
+          <div v-if="analysisArtifact?.data?.causal_chain?.length" class="causal-chain"><template v-for="(edge, index) in analysisArtifact.data.causal_chain" :key="`${edge.from}-${edge.to}`"><div class="causal-node"><span>{{ String(index + 1).padStart(2, '0') }}</span><strong>{{ edge.from }}</strong></div><div class="causal-arrow"><span>{{ edge.relation }}</span>↓</div><div v-if="index === analysisArtifact.data.causal_chain.length - 1" class="causal-node impact"><span>{{ String(index + 2).padStart(2, '0') }}</span><strong>{{ edge.to }}</strong></div></template></div>
+          <div v-else class="empty-note"><GitBranch :size="18" /><span>当前证据尚不足以形成故障传播链。</span></div>
+          <div class="section-head"><span>观测时间线</span><span class="muted-count">{{ analysisArtifact?.data?.timeline?.length || 0 }} 个信号</span></div>
+          <div v-if="analysisArtifact?.data?.timeline?.length" class="causal-timeline"><button v-for="item in analysisArtifact.data.timeline" :key="`${item.source}-${item.signal}`" @click="workspace.activeRun?.evidence?.find((entry: any) => entry.id === item.evidence_id) && evidence(workspace.activeRun.evidence.find((entry: any) => entry.id === item.evidence_id))"><span class="timeline-dot" :class="item.severity"></span><div><strong>{{ item.component }} · {{ item.signal }}</strong><small>{{ item.value }}</small></div><time>{{ new Date(item.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}</time></button></div>
+          <p v-if="analysisArtifact" class="analysis-disclaimer">{{ analysisArtifact.data.disclaimer }}</p>
         </template>
         <template v-else-if="activeSection === 'overview' && rightTab === 'evidence'">
           <div class="section-head"><span>证据与执行</span><span class="muted-count">{{ workspace.activeRun?.evidence?.length || 0 }} 条</span></div><div v-if="selectedEvidence" class="evidence-detail"><button class="back-link" @click="selectedEvidence = null">← 返回证据列表</button><div class="evidence-title"><ShieldCheck :size="15" /><strong>{{ selectedEvidence.source }}</strong><span class="state-badge">{{ selectedEvidence.status }}</span></div><pre>{{ JSON.stringify(selectedEvidence.payload, null, 2) }}</pre></div><div v-else-if="workspace.activeRun?.evidence?.length" class="evidence-list"><button v-for="item in workspace.activeRun.evidence" :key="item.id" class="evidence-item" @click="evidence(item)"><div><span class="evidence-source">{{ item.source }}</span><span class="state-badge" :class="item.status">{{ item.status === 'ok' ? '已获取' : '不可用' }}</span></div><small>{{ new Date(item.collected_at).toLocaleString('zh-CN') }} · #{{ item.id.slice(0, 8) }}</small></button></div><div v-else class="empty-note"><ShieldCheck :size="18" /><span>完成一次诊断后，工具证据会出现在这里。</span></div>

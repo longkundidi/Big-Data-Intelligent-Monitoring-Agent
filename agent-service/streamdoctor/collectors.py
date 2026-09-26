@@ -114,16 +114,32 @@ class Collectors:
                     "cluster": cluster_summary}
         job_id = job["jid"]
         result = {"job_id": job_id, "job_name": job.get("name"), "state": job.get("state"),
-                  "start_time": job.get("start-time"), "cluster": cluster_summary}
+                  "start_time": job.get("start-time"), "end_time": job.get("end-time"),
+                  "duration_ms": job.get("duration"), "cluster": cluster_summary}
         for key, path in (("exceptions", "/jobs/{}/exceptions"), ("checkpoints", "/jobs/{}/checkpoints")):
             try:
                 raw = self._flink(path.format(job_id))
                 if key == "exceptions":
                     result[key] = [{"exceptionName": e.get("exceptionName"), "timestamp": e.get("timestamp"),
                                      "stacktrace": e.get("stacktrace", "")[:1200]} for e in raw.get("exceptionHistory", {}).get("entries", [])[:5]]
+                    result["exception_summary"] = {
+                        "count": len(raw.get("exceptionHistory", {}).get("entries", [])),
+                        "latest_timestamp": result[key][0].get("timestamp") if result[key] else None,
+                        "truncated": bool(raw.get("exceptionHistory", {}).get("truncated")),
+                    }
                 else:
-                    result[key] = raw.get("counts", {})
-                    result["checkpoint_status"] = "disabled" if not raw.get("counts", {}).get("total") else "enabled"
+                    counts = raw.get("counts", {})
+                    latest = raw.get("latest", {}).get("completed") or raw.get("latest", {}).get("failed")
+                    result[key] = counts
+                    result["checkpoint_status"] = "disabled" if not counts.get("total") else "enabled"
+                    result["checkpoint_summary"] = {
+                        "latest_id": (latest or {}).get("id"),
+                        "latest_status": (latest or {}).get("status"),
+                        "latest_duration_ms": (latest or {}).get("end_to_end_duration"),
+                        "latest_size_bytes": (latest or {}).get("checkpointed_size"),
+                        "completed": counts.get("completed", 0),
+                        "failed": counts.get("failed", 0),
+                    }
             except Exception as exc:
                 result[key + "_error"] = str(exc)[:150]
         return result
@@ -135,7 +151,8 @@ class Collectors:
         job_id = job["jid"]
         details = self._flink("/jobs/{}".format(job_id))
         vertices = []
-        metric_names = "numRecordsInPerSecond,numRecordsOutPerSecond,busyTimeMsPerSecond,backPressuredTimeMsPerSecond"
+        metric_names = ("numRecordsInPerSecond,numRecordsOutPerSecond,numRecordsIn,numRecordsOut,"
+                        "busyTimeMsPerSecond,backPressuredTimeMsPerSecond,idleTimeMsPerSecond")
         for vertex in details.get("vertices", [])[:30]:
             item = {"name": vertex.get("name"), "id": vertex.get("id"), "status": vertex.get("status")}
             try:
@@ -144,8 +161,30 @@ class Collectors:
             except Exception as exc:
                 item["metrics_error"] = str(exc)[:120]
             vertices.append(item)
-        return {"job_id": job_id, "vertices": vertices,
-                "metric_errors": sum("metrics_error" in vertex for vertex in vertices)}
+        def values(name):
+            result = []
+            for vertex in vertices:
+                try:
+                    result.append(float(vertex.get("metrics", {}).get(name)))
+                except (TypeError, ValueError):
+                    pass
+            return result
+
+        input_rates = values("numRecordsInPerSecond")
+        output_rates = values("numRecordsOutPerSecond")
+        backpressure = values("backPressuredTimeMsPerSecond")
+        busy = values("busyTimeMsPerSecond")
+        metric_errors = sum("metrics_error" in vertex for vertex in vertices)
+        return {"job_id": job_id, "vertices": vertices, "metric_errors": metric_errors,
+                "summary": {
+                    "vertex_count": len(vertices),
+                    "observed_vertices": len(vertices) - metric_errors,
+                    "input_rate_total": sum(input_rates) if input_rates else None,
+                    "output_rate_total": sum(output_rates) if output_rates else None,
+                    "max_backpressure_ms_per_second": max(backpressure) if backpressure else None,
+                    "max_busy_ms_per_second": max(busy) if busy else None,
+                    "backpressured_vertices": sum(value > 500 for value in backpressure),
+                }}
 
     def kafka_offsets(self, question):
         kafka_servers = self._kafka_servers()
@@ -171,7 +210,8 @@ class Collectors:
                 rows.append({"partition": tp.partition, "latest": latest, "committed": committed,
                              "lag": max(0, latest - committed) if committed is not None else None})
             history = self.store.samples(self.chain["id"], "kafka_offsets", 1)
-            previous = history[-1]["payload"].get("total_lag") if history and history[-1]["status"] == "ok" else None
+            previous_payload = history[-1]["payload"] if history and history[-1]["status"] == "ok" else {}
+            previous = previous_payload.get("total_lag")
             topics = {}
             for topic_name in (self.chain["input_topic"], self.chain["output_topic"]):
                 topic_partitions = consumer.partitions_for_topic(topic_name)
@@ -180,15 +220,27 @@ class Collectors:
                     continue
                 topic_tps = [TopicPartition(topic_name, index) for index in sorted(topic_partitions)]
                 topic_ends = consumer.end_offsets(topic_tps)
+                latest_total = sum(topic_ends[tp] for tp in topic_tps)
+                previous_topic = previous_payload.get("topics", {}).get(topic_name, {})
+                previous_latest = previous_topic.get("latest_total")
                 topics[topic_name] = {
                     "exists": True,
                     "partition_count": len(topic_tps),
-                    "latest_total": sum(topic_ends[tp] for tp in topic_tps),
+                    "latest_total": latest_total,
+                    "latest_delta": latest_total - previous_latest if isinstance(previous_latest, int) else None,
                 }
+            known_lags = [row["lag"] for row in rows if row["lag"] is not None]
+            total_lag = sum(known_lags) if len(known_lags) == len(rows) else None
+            average_lag = (sum(known_lags) / len(known_lags)) if known_lags else None
+            max_lag = max(known_lags) if known_lags else None
             return {"topic": topic, "consumer_group": self.chain["consumer_group"],
                     "bootstrap_connected": True, "topics": topics,
-                    "partitions": rows, "total_lag": sum(row["lag"] for row in rows) if all(row["lag"] is not None for row in rows) else None,
-                    "previous_total_lag": previous,
+                    "partitions": rows, "total_lag": total_lag, "previous_total_lag": previous,
+                    "lag_delta": total_lag - previous if isinstance(total_lag, int) and isinstance(previous, int) else None,
+                    "summary": {"partition_count": len(rows), "unknown_committed_partitions": len(rows) - len(known_lags),
+                                "max_partition_lag": max_lag, "average_partition_lag": average_lag,
+                                "skew_ratio": (max_lag / average_lag) if average_lag else None,
+                                "lagging_partitions": sum(value > 0 for value in known_lags)},
                     "note": "已提交位点可能滞后于实时消费；需结合 Flink 输入输出指标确认。"}
         finally:
             consumer.close()

@@ -11,6 +11,7 @@ from .agents import ExecutorAgent, ReviewerAgent
 from .coordination import AgentCoordinator
 from .context import ContextAssembler
 from .diagnosis import report_for
+from .investigation import EvidencePlanner, causal_analysis
 from .memory import MemoryManager
 from .model_catalog import validate_selection
 from .tools.registry import ToolError, ToolRegistry
@@ -27,6 +28,7 @@ class AgentRuntime:
         self.context = ContextAssembler(store)
         self.memory = MemoryManager(store)
         self.reviewer = ReviewerAgent()
+        self.planner = EvidencePlanner()
         self.executor_agent = ExecutorAgent(settings.executor_url, settings.executor_token)
         self.executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="streamdoctor-run")
         self._cancelled: set[str] = set()
@@ -212,19 +214,56 @@ class AgentRuntime:
             registry = ToolRegistry(self.settings, self.store, project_id, run_id, replay=replay)
             coordinator = AgentCoordinator(self.store, run_id, lambda event_type, payload: self._emit(run_id, event_type, payload))
             evidence = []
-            tool_names = self._tool_order(question)
-            for round_number, tool_name in enumerate(tool_names, start=1):
-                if self._is_cancelled(run_id):
-                    return
-                if round_number > self.MAX_TOOL_CALLS or time.monotonic() - started_monotonic > self.MAX_SECONDS:
-                    self._emit(run_id, "budget_exhausted", {"tool_calls": round_number - 1})
-                    break
-                self.store.update_run_budget(run_id, {"tool_calls": round_number})
-                args = {"query": question}
-                result = self._execute_tool(registry, run_id, tool_name, args, round_number)
-                if isinstance(result, dict) and result.get("evidence_id"):
-                    evidence.extend(item for item in self.store.run_evidence(run_id)
-                                    if item["id"] == result["evidence_id"])
+            initial_order = self._tool_order(question)
+            tool_names = []
+            round_number = 0
+            configuration_mode = "get_configuration_status" in initial_order
+            if configuration_mode:
+                decisions = [
+                    {"tool": "get_configuration_status", "reason": "核对必填连接和链路标识"},
+                    {"tool": "get_project_topology", "reason": "核对配置对应的项目拓扑"},
+                ]
+                for decision in decisions:
+                    round_number += 1
+                    tool_name = decision["tool"]
+                    self._emit(run_id, "investigation_decision", {**decision, "round": round_number,
+                                                                     "agent_role": "reviewer"})
+                    result = self._execute_tool(registry, run_id, tool_name, {"query": question}, round_number)
+                    tool_names.append(tool_name)
+                    if isinstance(result, dict) and result.get("evidence_id"):
+                        evidence.extend(item for item in self.store.run_evidence(run_id)
+                                        if item["id"] == result["evidence_id"])
+            elif initial_order:
+                called = set()
+                mode = "replay" if replay else "live"
+                while True:
+                    decision = self.planner.decide(question, evidence, called, round_number, mode)
+                    self._emit(run_id, "investigation_decision", {
+                        **decision, "round": round_number + 1, "agent_role": "reviewer",
+                    })
+                    tool_name = decision.get("tool")
+                    if not tool_name:
+                        self._emit(run_id, "investigation_stopped", {
+                            "reason": decision.get("reason"), "stop_reason": decision.get("stop_reason"),
+                            "rounds": round_number, "tool_calls": len(called),
+                        })
+                        break
+                    if self._is_cancelled(run_id):
+                        return
+                    if round_number >= self.MAX_TOOL_CALLS or time.monotonic() - started_monotonic > self.MAX_SECONDS:
+                        self._emit(run_id, "budget_exhausted", {"tool_calls": round_number})
+                        break
+                    round_number += 1
+                    called.add(tool_name)
+                    tool_names.append(tool_name)
+                    self.store.update_run_budget(run_id, {"tool_calls": round_number})
+                    result = self._execute_tool(registry, run_id, tool_name, {"query": question}, round_number)
+                    if isinstance(result, dict) and result.get("evidence_id"):
+                        evidence.extend(item for item in self.store.run_evidence(run_id)
+                                        if item["id"] == result["evidence_id"])
+                    self._emit(run_id, "hypothesis_updated", {
+                        "round": round_number, "hypotheses": self.planner.hypotheses(evidence, question, mode),
+                    })
             if self._is_cancelled(run_id):
                 return
             if not tool_names:
@@ -233,10 +272,13 @@ class AgentRuntime:
                           "facts": [], "candidates": [], "missing": [], "actions": []}
                 model_answer, usage, model_error = None, {"input_tokens": 0, "output_tokens": 0}, None
             else:
-                if "get_configuration_status" in tool_names:
+                if configuration_mode:
                     answer, report = self._configuration_answer(evidence)
                 else:
                     answer, report = self._answer(question, evidence, bundle)
+                    report["hypotheses"] = self.planner.hypotheses(
+                        evidence, question, "replay" if replay else "live"
+                    )
 
                 review_task = coordinator.delegate("reviewer", "review_evidence", {
                     "question": question, "report": report, "evidence": evidence,
@@ -332,6 +374,31 @@ class AgentRuntime:
                 memory = self.memory.propose(project_id, "experience", candidate["title"],
                                               [item["id"] for item in evidence])
                 self._emit(run_id, "memory_proposal", {"memory": memory})
+            if tool_names and not configuration_mode:
+                analysis = causal_analysis(evidence, report)
+                analysis_artifact = self.store.create_artifact(
+                    run_id, "report", analysis, [item["id"] for item in evidence],
+                    {"start": min((item["window_start"] for item in evidence), default=None),
+                     "end": max((item["window_end"] for item in evidence), default=None)},
+                )
+                self._emit(run_id, "artifact", {"artifact": analysis_artifact})
+                kafka_evidence = next((item for item in reversed(evidence)
+                                       if item["source"] == "kafka_offsets" and item["status"] == "ok"), None)
+                if kafka_evidence:
+                    lag = kafka_evidence["payload"].get("total_lag")
+                    previous_lag = kafka_evidence["payload"].get("previous_total_lag")
+                    series = []
+                    if previous_lag is not None:
+                        series.append({"time": kafka_evidence["window_start"], "value": previous_lag})
+                    if lag is not None:
+                        series.append({"time": kafka_evidence["window_end"], "value": lag})
+                    if series:
+                        chart_artifact = self.store.create_artifact(
+                            run_id, "chart", {"metric": "lag", "unit": "records", "series": series,
+                                               "view": "kafka_lag_trend"}, [kafka_evidence["id"]],
+                            {"start": kafka_evidence["window_start"], "end": kafka_evidence["window_end"]},
+                        )
+                        self._emit(run_id, "artifact", {"artifact": chart_artifact})
             artifacts = self.store.artifacts(run_id)
             self.store.add_message(conversation_id, "assistant", answer,
                                    {"run_id": run_id, "report": report, "artifact_ids": [item["id"] for item in artifacts]}, run_id=run_id)

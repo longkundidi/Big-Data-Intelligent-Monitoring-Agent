@@ -41,8 +41,13 @@ def test_workspace_conversation_loop_and_sse(tmp_path, monkeypatch):
         run = wait_run(client, response.json()["run_id"])
         assert run["status"] == "completed"
         assert len(run["evidence"]) >= 4
-        assert run["artifacts"]
+        assert {item["kind"] for item in run["artifacts"]} >= {"report", "chart"}
         assert any(event["type"] == "tool_finished" for event in run["events"])
+        assert any(event["type"] == "investigation_decision" for event in run["events"])
+        assert any(event["type"] == "investigation_stopped" for event in run["events"])
+        report = next(event["payload"]["report"] for event in run["events"] if event["type"] == "message")
+        assert report["classification"] == "model_slow"
+        assert next(item for item in report["hypotheses"] if item["code"] == "model_slow")["status"] == "supported"
         assert "message" in client.get("/api/agent/runs/{}/events".format(run["id"])).text
         duplicate = client.post("/api/agent/conversations/{}/messages".format(conversation["id"]), json={
             "content": "查看链路拓扑和积压趋势", "request_id": "one"})

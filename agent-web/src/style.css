@@ -194,6 +194,34 @@ button { cursor: pointer; }
 .agent-message span { color: #9ed878; }
 .agent-message i { color: #526175; font-style: normal; text-align: center; }
 .agent-message strong { color: #9aa8b8; font-size: 10px; font-weight: 400; text-align: right; }
+.hypothesis-list { display: grid; gap: 6px; }
+.hypothesis-item { min-height: 54px; padding: 9px 10px; border: 1px solid #283648; border-radius: 7px; display: flex; gap: 9px; background: #141c27; }
+.hypothesis-state { flex: 0 0 38px; height: 20px; display: grid; place-items: center; border-radius: 4px; color: #738196; background: #202a37; font-size: 9px; }
+.hypothesis-item.supported { border-color: #49663f; }
+.hypothesis-item.supported .hypothesis-state { color: #b7e49b; background: #263b29; }
+.hypothesis-item.unknown .hypothesis-state { color: #e2c685; background: #3a3221; }
+.hypothesis-item.not_supported { opacity: .62; }
+.hypothesis-item strong, .hypothesis-item small { display: block; }
+.hypothesis-item strong { color: #ccd7e3; font-size: 10px; font-weight: 500; }
+.hypothesis-item small { margin-top: 5px; color: #6f7e91; font-size: 9px; line-height: 1.45; }
+.causal-chain { padding: 10px; border: 1px solid #283648; border-radius: 7px; background: #121a24; }
+.causal-node { min-height: 36px; display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 6px; background: #1a2531; }
+.causal-node span { color: #78b88a; font-size: 9px; }
+.causal-node strong { color: #cbd7e2; font-size: 10px; font-weight: 500; }
+.causal-node.impact { background: #2c261d; }
+.causal-arrow { min-height: 36px; display: grid; place-items: center; color: #5f6e80; font-size: 11px; }
+.causal-arrow span { font-size: 8px; }
+.causal-timeline { position: relative; display: grid; gap: 5px; }
+.causal-timeline button { width: 100%; min-height: 48px; padding: 8px 9px; display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; border: 1px solid #273546; border-radius: 6px; color: inherit; background: #141c27; text-align: left; }
+.causal-timeline button:hover { border-color: #4c6b55; }
+.timeline-dot { width: 7px; height: 7px; border-radius: 50%; background: #6e8094; }
+.timeline-dot.warning { background: #d3aa59; }
+.timeline-dot.critical { background: #d56d68; }
+.causal-timeline strong, .causal-timeline small { display: block; }
+.causal-timeline strong { color: #becbd8; font-size: 10px; font-weight: 500; }
+.causal-timeline small { margin-top: 3px; color: #778699; font-size: 9px; }
+.causal-timeline time { color: #536174; font-size: 8px; }
+.analysis-disclaimer { color: #5e6c7e; font-size: 8px; line-height: 1.5; margin: 8px 2px 0; }
 .topology-card { border: 1px solid #29384a; border-radius: 8px; background: #131b25; padding: 15px 13px; }
 .flow-node { border: 1px solid #33455a; border-radius: 7px; padding: 10px; position: relative; }
 .flow-node span { font-size: 9px; color: #697b8f; }

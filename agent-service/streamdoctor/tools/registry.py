@@ -105,7 +105,11 @@ class ToolRegistry:
         return {"status": "unavailable", "data": {"error": "尚未配置只读业务摘要适配器"}}
 
     def _runbooks(self, query="", **_):
-        return {"status": "ok", "matches": search_runbooks(query) + self.store.approved_cases(query)}
+        payload = {"matches": search_runbooks(query) + self.store.approved_cases(query)}
+        timestamp = datetime.now(timezone.utc).isoformat()
+        evidence = self.store.add_run_evidence(self.run_id, "runbook", "ok", payload, timestamp, timestamp)
+        return {"status": "ok", **payload, "data": payload, "evidence_id": evidence["id"],
+                "collected_at": evidence["collected_at"], "window_start": timestamp, "window_end": timestamp}
 
     def _memory(self, query="", **_):
         return {"status": "ok", "matches": self.store.search_memories(self.project_id, query, 5)}
