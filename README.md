@@ -66,7 +66,7 @@ docker logs --tail 100 streamdoctor-agent-web
 ```dotenv
 AGENT_MODEL_API_KEY=填写实际密钥
 AGENT_MODEL_BASE_URL=填写兼容Responses-API的地址
-AGENT_MODEL_NAME=gpt-6-astra
+AGENT_MODEL_NAME=gpt-5.6-luna
 AGENT_REASONING_EFFORT=high
 ```
 

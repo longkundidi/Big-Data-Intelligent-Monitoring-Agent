@@ -37,7 +37,7 @@ PowerShell 启动示例：
 
 ```powershell
 $env:AGENT_MODEL_API_KEY = "你的 OpenAI API Key"
-$env:AGENT_MODEL_NAME = "gpt-6-astra"
+$env:AGENT_MODEL_NAME = "gpt-5.6-luna"
 $env:AGENT_REASONING_EFFORT = "high"
 .venv\Scripts\python -m uvicorn streamdoctor.api:app --host 127.0.0.1 --port 8099
 ```

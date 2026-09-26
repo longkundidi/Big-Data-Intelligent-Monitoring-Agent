@@ -59,6 +59,8 @@ OPENAI_MODELS = (
     ),
 )
 
+DEFAULT_MODEL_ID = "gpt-5.6-luna"
+
 
 def catalog(settings):
     profiles = list(OPENAI_MODELS)
@@ -76,7 +78,7 @@ def catalog(settings):
 
 def defaults(settings):
     profiles = catalog(settings)
-    model_id = (settings.model_name or profiles[0].id).strip()
+    model_id = (settings.model_name or DEFAULT_MODEL_ID).strip()
     profile = next((item for item in profiles if item.id == model_id), profiles[0])
     effort = (settings.model_reasoning_effort or profile.default_effort).strip().lower()
     if effort not in profile.reasoning_efforts:

@@ -54,7 +54,8 @@ def test_model_catalog_and_conversation_selection_are_persisted(tmp_path, monkey
     with client:
         model_config = client.get("/api/agent/models").json()
         assert model_config["configured"] is False
-        assert model_config["default_model"] == "gpt-6-astra"
+        assert model_config["default_model"] == "gpt-5.6-luna"
+        assert model_config["default_reasoning_effort"] == "medium"
         assert "api_key" not in model_config
         astra = next(item for item in model_config["models"] if item["id"] == "gpt-6-astra")
         assert astra["reasoning_efforts"] == ["low", "medium", "high", "xhigh", "max"]
