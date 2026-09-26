@@ -1,12 +1,20 @@
 # StreamDoctor
 
-Kafka/Flink 运行诊断 Agent。基于开源 LangChain `create_agent` 与 LangGraph SQLite checkpointer 二次开发：添加七个只读业务工具、证据 ID、链路知识和安全边界。未配置模型时使用 LangGraph 固定采集流程，离线回放不依赖服务器或 API Key；配置兼容工具调用的模型后，预置 Agent 自主选择工具，最多八次模型决策和二十次工具调用。
+Kafka/Flink 运行诊断 Agent。运行时分为审查智能体和执行智能体：审查者只读取观测、发现问题并提出建议；执行者只接受用户明确提出的受控动作，并通过隔离执行器操作白名单组件。未配置模型时仍可使用规则流程和离线回放；配置模型后由审查智能体根据证据生成回答，模型输出本身不能授予执行权限。
 
 工作区 API 还提供项目、持续会话、短期上下文、项目级长期记忆提议、Run 执行循环、SSE 事件和可视化 Artifact。独立网页在仓库的 `agent-web` 目录中，现有业务 Vue 页面仍保留兼容入口。
 
 项目链路现在使用版本化规格保存。系统内置空白、Kafka 积压、Kafka + Flink、Flink + 模型、Flink + 数据库五套模板；模板和项目规格都保存服务器、服务、节点、关系及诊断能力。模板可以复制为自定义模板并继续发布版本，项目从指定模板版本复制独立规格，因此后续修改模板不会覆盖已有项目。项目规格每次发布保存完整快照和字段级变更，可恢复任意旧版本；每次 Agent Run 同时固定当时的规格版本 ID。
 
-在项目会话输入 `/init`，或点击侧栏“扫描项目配置”，会从 `AGENT_PROJECT_SCAN_ROOT` 指定的只读项目目录查找 Compose、`.env.example`、`topology.json`、应用 YAML/Properties、POM 和包清单，提取 Kafka/Flink/模型端点、Topic、消费组和 Job。扫描结果只发布为当前项目的新规格版本，不修改项目最初使用的原始模板；需要复用时再由用户选择“另存为模板”。扫描器忽略真实 `.env`、Git、依赖、构建产物和数据目录，不采集密码、Token 或 API Key。
+在项目会话输入 `/` 并选择 `/init`，会从 `AGENT_PROJECT_SCAN_ROOT` 指定的只读项目目录查找 Compose、`.env.example`、`topology.json`、应用 YAML/Properties、POM 和包清单，提取 Kafka/Flink/模型端点、Topic、消费组和 Job。扫描结果只发布为当前项目的新规格版本，不修改项目最初使用的原始模板；需要复用时再由用户选择“另存为模板”。扫描器忽略真实 `.env`、Git、依赖、构建产物和数据目录，不采集密码、Token 或 API Key。
+
+## 双智能体与执行边界
+
+- 审查智能体拥有 `observe/review/recommend` 权限，不能调用执行接口，也不能写配置或长期记忆。
+- 执行智能体只支持 `status/start/stop/restart`，目标只允许 `kafka/flink/model/pipeline`。任意 Shell、容器名、URL、SQL 和脚本都不会进入执行器。
+- 含“是否、建议、怎么、分析”等表达的处置讨论只生成建议。只有 `/restart flink`、`请重启 Flink` 这类明确指令才会执行。
+- 每次计划、阻止、执行结果和恢复复查都写入 Run 事件及 `execution_actions` 审计表。
+- `executor-service` 是唯一挂载 Docker Socket 的容器，不开放宿主机端口，并使用 `EXECUTOR_SHARED_TOKEN` 验证来自 Agent 的内部请求。部署前必须在服务器 `.env` 设置足够长的随机 Token。
 
 ## 启动
 
@@ -45,7 +53,7 @@ $env:AGENT_REASONING_EFFORT = "high"
 
 ## 接口与运行状态
 
-`GET /api/agent/topology` 返回配置、最近采样、节点状态和发现的问题；`POST /api/agent/observations/collect` 立即执行一次 Flink、Kafka 与模型服务采集；`GET /api/agent/replays` 列出隔离场景；`POST /api/agent/incidents` 接受 `question` 与可选 `replay`；`GET /api/agent/incidents/{id}` 返回报告和证据；`GET /api/agent/incidents/{id}/events` 使用 SSE 的 `Last-Event-ID` 断点续读；`POST /api/agent/incidents/{id}/recheck` 创建关联复查；`POST /api/agent/incidents/{id}/feedback` 保存人工纠正和收录建议；`POST /api/agent/incidents/{id}/review` 提交 `{ "approved": true }` 后才进入知识库，并记录审核事件。回放复查可指定 `{"replay_after":"normal"}`。所有诊断动作只读。
+`GET /api/agent/topology` 返回配置、最近采样、节点状态和发现的问题；`POST /api/agent/observations/collect` 立即执行一次 Flink、Kafka 与模型服务采集；`GET /api/agent/replays` 列出隔离场景；`POST /api/agent/incidents` 接受 `question` 与可选 `replay`；`GET /api/agent/incidents/{id}` 返回报告和证据；`GET /api/agent/incidents/{id}/events` 使用 SSE 的 `Last-Event-ID` 断点续读；`POST /api/agent/incidents/{id}/recheck` 创建关联复查；`POST /api/agent/incidents/{id}/feedback` 保存人工纠正和收录建议；`POST /api/agent/incidents/{id}/review` 提交 `{ "approved": true }` 后才进入知识库，并记录审核事件。回放复查可指定 `{"replay_after":"normal"}`。诊断工具保持只读，只有受控执行器可以执行上述四类白名单动作。
 
 工作区接口使用项目和会话维度：`/api/agent/projects` 管理被监测系统，`/api/agent/projects/{id}/conversations` 管理持续对话，`/api/agent/conversations/{id}/messages` 启动一次有预算的 Agent Run，`/api/agent/runs/{id}/events` 推送工具和报告事件，`/api/agent/projects/{id}/memories/{memory_id}/approve` 确认长期记忆，`/api/agent/artifacts/{id}` 返回受校验的拓扑、图表或表格数据。未配置模型时，Run 仍会按问题选择只读工具并生成规则诊断，明确显示观测缺口和历史回放状态。
 

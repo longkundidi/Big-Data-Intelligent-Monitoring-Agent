@@ -50,6 +50,8 @@ class Settings:
     )
     poll_enabled: bool = os.getenv("AGENT_POLL_ENABLED", "false").lower() == "true"
     project_scan_root: Path | None = Path(os.getenv("AGENT_PROJECT_SCAN_ROOT")).resolve() if os.getenv("AGENT_PROJECT_SCAN_ROOT") else None
+    executor_url: str = os.getenv("AGENT_EXECUTOR_URL", "")
+    executor_token: str = os.getenv("EXECUTOR_SHARED_TOKEN", "")
 
     def topology(self):
         return json.loads(self.topology_path.read_text(encoding="utf-8"))

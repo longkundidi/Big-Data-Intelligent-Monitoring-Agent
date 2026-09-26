@@ -7,6 +7,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
+from .agents import ExecutorAgent, ReviewerAgent
 from .context import ContextAssembler
 from .diagnosis import report_for
 from .memory import MemoryManager
@@ -24,6 +25,8 @@ class AgentRuntime:
         self.store = store
         self.context = ContextAssembler(store)
         self.memory = MemoryManager(store)
+        self.reviewer = ReviewerAgent()
+        self.executor_agent = ExecutorAgent(settings.executor_url, settings.executor_token)
         self.executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="streamdoctor-run")
         self._cancelled: set[str] = set()
         self._lock = threading.RLock()
@@ -63,6 +66,26 @@ class AgentRuntime:
 
     def _emit(self, run_id, event_type, payload):
         return self.store.run_event(run_id, event_type, payload)
+
+    def _execute_tool(self, registry, run_id, tool_name, args, round_number):
+        call_id = str(uuid.uuid4())
+        self.store.add_tool_call(call_id, run_id, tool_name, args)
+        self._emit(run_id, "tool_started", {"call_id": call_id, "tool": tool_name,
+                                               "round": round_number, "agent_role": "reviewer"})
+        try:
+            result = registry.execute(tool_name, args)
+            status = result.get("status", "ok") if isinstance(result, dict) else "ok"
+            self.store.finish_tool_call(call_id, status, result)
+            self._emit(run_id, "tool_finished", {"call_id": call_id, "tool": tool_name, "status": status,
+                                                    "summary": self._summary(result), "agent_role": "reviewer"})
+            return result
+        except Exception as exc:
+            result = {"status": "unavailable", "error": str(exc)[:250]}
+            self.store.finish_tool_call(call_id, "unavailable", result)
+            self._emit(run_id, "tool_finished", {"call_id": call_id, "tool": tool_name,
+                                                    "status": "unavailable", "summary": result["error"],
+                                                    "agent_role": "reviewer"})
+            return result
 
     @staticmethod
     def _tool_order(question: str):
@@ -155,7 +178,7 @@ class AgentRuntime:
                 "memory": bundle.memories,
             }
             response = model.invoke([
-                ("system", "你是 StreamDoctor 运行诊断 Agent。只能根据给出的事实回答，区分事实、假设和建议；保留证据 ID；证据不足时明确说明未知，不执行任何操作。"),
+                ("system", "你是 StreamDoctor 的审查智能体。你只有读取、审查和提出建议的权限。只能根据给出的事实回答，区分事实、假设和建议；保留证据 ID；证据不足时明确说明未知。执行结果只能引用输入中的 execution 字段，不得声称自行执行了命令。"),
                 ("user", json.dumps(prompt, ensure_ascii=False)),
             ])
             usage = getattr(response, "usage_metadata", None) or {}
@@ -195,24 +218,11 @@ class AgentRuntime:
                     self._emit(run_id, "budget_exhausted", {"tool_calls": round_number - 1})
                     break
                 self.store.update_run_budget(run_id, {"tool_calls": round_number})
-                call_id = str(uuid.uuid4())
                 args = {"query": question}
-                self.store.add_tool_call(call_id, run_id, tool_name, args)
-                self._emit(run_id, "tool_started", {"call_id": call_id, "tool": tool_name, "round": round_number})
-                try:
-                    result = registry.execute(tool_name, args)
-                    status = result.get("status", "ok") if isinstance(result, dict) else "ok"
-                    self.store.finish_tool_call(call_id, status, result)
-                    self._emit(run_id, "tool_finished", {"call_id": call_id, "tool": tool_name, "status": status,
-                                                            "summary": self._summary(result)})
-                    if isinstance(result, dict) and result.get("evidence_id"):
-                        evidence.extend(item for item in self.store.run_evidence(run_id)
-                                        if item["id"] == result["evidence_id"])
-                except Exception as exc:
-                    result = {"status": "unavailable", "error": str(exc)[:250]}
-                    self.store.finish_tool_call(call_id, "unavailable", result)
-                    self._emit(run_id, "tool_finished", {"call_id": call_id, "tool": tool_name, "status": "unavailable",
-                                                            "summary": result["error"]})
+                result = self._execute_tool(registry, run_id, tool_name, args, round_number)
+                if isinstance(result, dict) and result.get("evidence_id"):
+                    evidence.extend(item for item in self.store.run_evidence(run_id)
+                                    if item["id"] == result["evidence_id"])
             if self._is_cancelled(run_id):
                 return
             if not tool_names:
@@ -225,6 +235,61 @@ class AgentRuntime:
                     answer, report = self._configuration_answer(evidence)
                 else:
                     answer, report = self._answer(question, evidence, bundle)
+
+                self._emit(run_id, "reviewer_started", {"agent_role": "reviewer", "evidence_count": len(evidence)})
+                review = self.reviewer.review(report, evidence)
+                report["review"] = review
+                self._emit(run_id, "reviewer_finished", review)
+
+                intent, blocked_reason = self.executor_agent.plan(question)
+                if intent:
+                    action_record = self.store.create_execution_action(
+                        run_id, project_id, intent.action, intent.target, intent.explicit,
+                        status="blocked" if blocked_reason else "running", policy_reason=blocked_reason,
+                    )
+                    self._emit(run_id, "executor_plan", {
+                        "agent_role": "executor", "action_id": action_record["id"], "action": intent.action,
+                        "target": intent.target, "explicit_request": intent.explicit,
+                    })
+                    if blocked_reason:
+                        execution = {"status": "blocked", "reason": blocked_reason, "action": intent.action,
+                                     "target": intent.target}
+                        self.store.finish_execution_action(action_record["id"], "blocked", execution)
+                        self._emit(run_id, "executor_blocked", {"agent_role": "executor", **execution})
+                        report["execution"] = execution
+                        answer += "\n执行智能体未执行：{}。".format(blocked_reason)
+                    else:
+                        self._emit(run_id, "executor_started", {"agent_role": "executor",
+                                                                  "action_id": action_record["id"],
+                                                                  "action": intent.action, "target": intent.target})
+                        execution = self.executor_agent.execute(intent, project_id, run_id)
+                        final_status = "completed" if execution.get("status") == "ok" else "failed"
+                        self.store.finish_execution_action(action_record["id"], final_status, execution)
+                        self._emit(run_id, "executor_finished", {"agent_role": "executor",
+                                                                   "action_id": action_record["id"], **execution})
+                        report["execution"] = execution
+                        answer += "\n执行智能体：{} {}，结果 {}。".format(
+                            intent.action, intent.target, execution.get("status"))
+                        if execution.get("status") == "ok" and intent.action in {"start", "stop", "restart"}:
+                            recheck_tools = {
+                                "kafka": ["get_kafka_offsets"],
+                                "flink": ["get_flink_status", "get_flink_metrics"],
+                                "model": ["get_model_health"],
+                                "pipeline": ["get_flink_status", "get_kafka_offsets", "get_model_health"],
+                            }[intent.target]
+                            for recheck_tool in recheck_tools:
+                                round_number += 1
+                                recheck_result = self._execute_tool(
+                                    registry, run_id, recheck_tool,
+                                    {"query": "执行后恢复复查", "force_refresh": True}, round_number,
+                                )
+                                if isinstance(recheck_result, dict) and recheck_result.get("evidence_id"):
+                                    evidence.extend(item for item in self.store.run_evidence(run_id)
+                                                    if item["id"] == recheck_result["evidence_id"])
+                            recheck_report = report_for(evidence, question, "live")
+                            recheck_review = self.reviewer.review(recheck_report, evidence)
+                            report["recheck"] = recheck_review
+                            self._emit(run_id, "reviewer_recheck_finished", recheck_review)
                 model_answer, usage, model_error = self._model_synthesis(
                     run_id, question, evidence, report, bundle, model_id, reasoning_effort
                 )

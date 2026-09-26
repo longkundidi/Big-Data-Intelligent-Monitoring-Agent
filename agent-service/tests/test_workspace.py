@@ -90,6 +90,22 @@ def test_greeting_does_not_trigger_diagnostic_tools(tmp_path, monkeypatch):
         assert "未执行诊断工具" in messages[-1]["context"]["report"]["summary"]
 
 
+def test_mutating_action_is_audited_and_blocked_without_executor_config(tmp_path, monkeypatch):
+    client, _ = client_for(tmp_path, monkeypatch)
+    with client:
+        conversation = client.post("/api/agent/projects/elevator-regtcn/conversations", json={"title": "执行边界"}).json()
+        submitted = client.post("/api/agent/conversations/{}/messages".format(conversation["id"]), json={
+            "content": "/restart flink", "mode": "replay", "replay": "normal",
+        }).json()
+        run = wait_run(client, submitted["run_id"])
+        assert run["status"] == "completed"
+        assert run["execution_actions"][0]["action"] == "restart"
+        assert run["execution_actions"][0]["target"] == "flink"
+        assert run["execution_actions"][0]["status"] == "blocked"
+        assert any(event["type"] == "reviewer_finished" for event in run["events"])
+        assert any(event["type"] == "executor_blocked" for event in run["events"])
+
+
 def test_project_memory_requires_approval_and_is_isolated(tmp_path, monkeypatch):
     client, store = client_for(tmp_path, monkeypatch)
     with client:

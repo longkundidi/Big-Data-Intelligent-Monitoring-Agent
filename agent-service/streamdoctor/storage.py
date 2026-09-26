@@ -81,6 +81,14 @@ class Store:
                     started_at TEXT NOT NULL, finished_at TEXT
                 );
                 CREATE INDEX IF NOT EXISTS idx_tool_calls_run ON tool_calls(run_id,started_at);
+                CREATE TABLE IF NOT EXISTS execution_actions (
+                    id TEXT PRIMARY KEY, run_id TEXT NOT NULL, project_id TEXT NOT NULL,
+                    agent_role TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL,
+                    status TEXT NOT NULL, explicit_request INTEGER NOT NULL DEFAULT 0,
+                    policy_reason TEXT, result_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL, finished_at TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_execution_actions_run ON execution_actions(run_id,created_at);
                 CREATE TABLE IF NOT EXISTS memories (
                     id TEXT PRIMARY KEY, project_id TEXT NOT NULL, kind TEXT NOT NULL,
                     content TEXT NOT NULL, status TEXT NOT NULL, source_ids TEXT NOT NULL DEFAULT '[]',
@@ -466,6 +474,7 @@ class Store:
             for run_id in run_ids:
                 db.execute("DELETE FROM run_events WHERE run_id=?", (run_id,))
                 db.execute("DELETE FROM tool_calls WHERE run_id=?", (run_id,))
+                db.execute("DELETE FROM execution_actions WHERE run_id=?", (run_id,))
                 db.execute("DELETE FROM artifacts WHERE run_id=?", (run_id,))
                 db.execute("DELETE FROM run_evidence WHERE run_id=?", (run_id,))
             db.execute("DELETE FROM runs WHERE conversation_id=?", (conversation_id,))
@@ -575,6 +584,39 @@ class Store:
     def finish_tool_call(self, call_id, status, result):
         with self.lock, self.connection() as db:
             db.execute("UPDATE tool_calls SET status=?,result=?,finished_at=? WHERE id=?", (status, json.dumps(result, ensure_ascii=False), now(), call_id))
+
+    def create_execution_action(self, run_id, project_id, action, target, explicit_request, status="planned",
+                                policy_reason=None):
+        action_id = str(uuid.uuid4())
+        with self.lock, self.connection() as db:
+            db.execute(
+                "INSERT INTO execution_actions(id,run_id,project_id,agent_role,action,target,status,explicit_request,policy_reason,result_json,created_at) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (action_id, run_id, project_id, "executor", action, target, status,
+                 1 if explicit_request else 0, policy_reason, "{}", now()),
+            )
+        return self.execution_action(action_id)
+
+    def finish_execution_action(self, action_id, status, result):
+        with self.lock, self.connection() as db:
+            db.execute("UPDATE execution_actions SET status=?,result_json=?,finished_at=? WHERE id=?",
+                       (status, json.dumps(result, ensure_ascii=False), now(), action_id))
+        return self.execution_action(action_id)
+
+    def execution_action(self, action_id):
+        with self.connection() as db:
+            row = db.execute("SELECT * FROM execution_actions WHERE id=?", (action_id,)).fetchone()
+        if not row:
+            return None
+        item = dict(row)
+        item["explicit_request"] = bool(item["explicit_request"])
+        item["result"] = json.loads(item.pop("result_json"))
+        return item
+
+    def execution_actions(self, run_id):
+        with self.connection() as db:
+            rows = db.execute("SELECT id FROM execution_actions WHERE run_id=? ORDER BY created_at", (run_id,)).fetchall()
+        return [self.execution_action(row["id"]) for row in rows]
 
     def create_memory(self, project_id, kind, content, source_ids, status="proposed"):
         memory_id = str(uuid.uuid4())

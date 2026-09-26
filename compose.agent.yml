@@ -21,10 +21,26 @@ services:
       AGENT_MODEL_BASE_URL: ${AGENT_MODEL_BASE_URL:-}
       AGENT_MODEL_NAME: ${AGENT_MODEL_NAME:-gpt-6-astra}
       AGENT_REASONING_EFFORT: ${AGENT_REASONING_EFFORT:-high}
+      AGENT_EXECUTOR_URL: http://executor:8100
+      EXECUTOR_SHARED_TOKEN: ${EXECUTOR_SHARED_TOKEN:-}
     volumes:
       - agent-data:/data
       - ./:/workspace:ro
     mem_limit: 1200m
+    networks:
+      - streamdoctor
+
+  executor:
+    build:
+      context: ./agent-service
+    container_name: streamdoctor-executor
+    restart: unless-stopped
+    command: ["uvicorn", "streamdoctor.executor_api:app", "--host", "0.0.0.0", "--port", "8100"]
+    environment:
+      EXECUTOR_SHARED_TOKEN: ${EXECUTOR_SHARED_TOKEN:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    mem_limit: 160m
     networks:
       - streamdoctor
 

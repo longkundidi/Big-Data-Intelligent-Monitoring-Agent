@@ -38,7 +38,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         getRun(runId)
       }
     }
-    for (const type of ['run_queued', 'run_started', 'context_ready', 'tool_started', 'tool_finished', 'model_started', 'model_usage', 'model_finished', 'model_skipped', 'model_failed', 'artifact', 'memory_proposal', 'message', 'budget_exhausted', 'run_finished', 'run_failed', 'run_cancelled']) {
+    for (const type of ['run_queued', 'run_started', 'context_ready', 'tool_started', 'tool_finished', 'reviewer_started', 'reviewer_finished', 'reviewer_recheck_finished', 'executor_plan', 'executor_started', 'executor_finished', 'executor_blocked', 'model_started', 'model_usage', 'model_finished', 'model_skipped', 'model_failed', 'artifact', 'memory_proposal', 'message', 'budget_exhausted', 'run_finished', 'run_failed', 'run_cancelled']) {
       eventSource.addEventListener(type, onEvent)
     }
     eventSource.onerror = () => { closeStream(); getRun(runId) }

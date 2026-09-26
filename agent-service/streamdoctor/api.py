@@ -814,7 +814,7 @@ def run_detail(run_id: str):
     if not run:
         return None
     return {**run, "events": store.run_events(run_id), "evidence": store.run_evidence(run_id),
-            "artifacts": store.artifacts(run_id)}
+            "artifacts": store.artifacts(run_id), "execution_actions": store.execution_actions(run_id)}
 
 
 @app.get("/api/agent/runs/{run_id}")
