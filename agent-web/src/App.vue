@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   Activity, AlertTriangle, Archive, BookOpen, Bot, CheckCircle2, ChevronDown, CircleStop,
   Copy, Database, FileText, FolderPlus, FolderSearch, GitBranch, History, Layers, LayoutDashboard,
@@ -14,6 +14,7 @@ type Section = 'overview' | 'resources' | 'diagnosis' | 'docs' | 'templates'
 
 const workspace = useWorkspaceStore()
 const input = ref('')
+const messageList = ref<HTMLElement | null>(null)
 const rightTab = ref('overview')
 const replay = ref('')
 const mobilePanel = ref('chat')
@@ -81,6 +82,7 @@ const collaborationMessages = computed(() => {
   return workspace.events.filter((item: any) => item.type === 'agent_message').map((item: any) => item.payload)
 })
 const latestModelEvent = computed(() => [...workspace.events].reverse().find((item: any) => ['model_finished', 'model_skipped', 'model_failed'].includes(item.type)))
+const runBusy = computed(() => ['queued', 'running'].includes(workspace.activeRun?.status))
 const latestReport = computed(() => assistantMessages.value.at(-1)?.context?.report || null)
 const recoveryActions = computed<string[]>(() => latestReport.value?.actions || [])
 const canResumeRun = computed(() => ['failed', 'interrupted', 'cancelled'].includes(workspace.activeRun?.status))
@@ -110,6 +112,47 @@ function executionEventLabel(event: any) {
   if (event.type.startsWith('reviewer_')) return event.type.includes('recheck') ? '审查者复查' : '审查者分析'
   if (event.type.startsWith('executor_')) return `执行者 ${event.payload.action || ''} ${event.payload.target || ''}`.trim()
   return event.payload.tool || '准备上下文'
+}
+function runForMessage(message: any) {
+  if (!message.run_id) return null
+  if (workspace.activeRun?.id === message.run_id) return { ...workspace.activeRun, events: workspace.events }
+  return workspace.runDetails[message.run_id] || null
+}
+function visibleRunEvents(run: any) {
+  const hidden = new Set(['run_queued', 'agent_message', 'subagent_started', 'subagent_finished', 'model_usage', 'artifact', 'message'])
+  return (run?.events || []).filter((event: any) => !hidden.has(event.type))
+}
+function runEventTitle(event: any) {
+  const labels: Record<string, string> = {
+    run_started: '开始装配诊断上下文', context_ready: '项目上下文已就绪',
+    investigation_decision: '规划下一项检查', hypothesis_updated: '更新原因假设',
+    investigation_stopped: '证据收集结束', tool_started: '调用诊断工具', tool_finished: '工具返回结果',
+    reviewer_started: '审查智能体开始复核', reviewer_finished: '审查智能体返回结论',
+    reviewer_recheck_finished: '恢复复查完成', executor_plan: '生成受控执行计划',
+    executor_started: '执行智能体开始操作', executor_finished: '执行操作完成', executor_blocked: '执行被边界策略阻止',
+    model_started: '模型开始生成', model_finished: '模型回答生成完成', model_skipped: '模型不可用，使用规则结论',
+    model_failed: '模型调用失败，使用规则结论', budget_exhausted: '达到执行预算',
+    run_finished: '本轮诊断完成', run_failed: '本轮诊断失败', run_cancelled: '本轮诊断已停止',
+  }
+  return labels[event.type] || event.type
+}
+function runEventDetail(event: any) {
+  const payload = event.payload || {}
+  if (event.type.startsWith('tool_')) return payload.tool || payload.status || ''
+  if (event.type.startsWith('model_')) return [payload.model_id, payload.reason].filter(Boolean).join(' · ')
+  if (event.type === 'investigation_decision') return payload.reason || payload.next_tool || ''
+  if (event.type === 'hypothesis_updated') return payload.title || payload.code || payload.status || ''
+  if (event.type.startsWith('reviewer_')) return payload.summary || payload.status || ''
+  if (event.type.startsWith('executor_')) return [payload.action, payload.target, payload.status].filter(Boolean).join(' · ')
+  return payload.summary || payload.classification || payload.status || ''
+}
+function scrollMessages(force = false) {
+  nextTick(() => {
+    const element = messageList.value
+    if (!element) return
+    const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 120
+    if (force || nearBottom) element.scrollTop = element.scrollHeight
+  })
 }
 function agentName(role: string) {
   return role === 'coordinator' ? '协调器' : role === 'reviewer' ? '审查者' : '执行者'
@@ -198,7 +241,7 @@ async function deleteConversation(item: any) {
 
 async function submit() {
   const value = input.value.trim()
-  if (!value || workspace.activeRun?.status === 'running') return
+  if (!value || runBusy.value) return
   if (slashMenuOpen.value && slashOptions.value.length) {
     if (slashOptions.value[0].command !== value) {
       chooseSlashCommand(slashOptions.value[0].command)
@@ -221,6 +264,7 @@ async function submit() {
   }
   await workspace.send(value, replay.value || undefined)
   replay.value = ''
+  scrollMessages(true)
 }
 
 function chooseSlashCommand(command: string) {
@@ -439,6 +483,7 @@ onMounted(async () => {
 
 watch(() => [workspace.currentProjectId, workspace.conversation?.id, activeSection.value], syncRoute)
 watch(() => workspace.conversation?.id, () => syncModelSelection(workspace.conversation))
+watch(() => [workspace.conversation?.messages?.length, workspace.events.length], () => scrollMessages())
 watch(input, (value) => {
   slashMenuOpen.value = value.trim().startsWith('/') && value !== selectedSlashCommand.value
   if (value !== selectedSlashCommand.value) selectedSlashCommand.value = ''
@@ -470,16 +515,22 @@ watch(input, (value) => {
 
     <main class="chat-panel" :class="{ 'mobile-hidden': mobilePanel !== 'chat' }">
       <header class="topbar"><div class="mobile-tabs"><button :class="{ active: mobilePanel === 'projects' }" @click="mobilePanel = 'projects'">项目</button><button :class="{ active: mobilePanel === 'chat' }" @click="mobilePanel = 'chat'">对话</button><button :class="{ active: mobilePanel === 'visual' }" @click="openRightPanel">详情</button></div><div class="context-pill"><span class="online-dot"></span>{{ workspace.project?.name || '选择一个项目' }}<ChevronDown :size="14" /></div><div class="top-actions"><button v-if="!rightPanelOpen" class="icon-button reopen-panel" title="打开项目详情" @click="openRightPanel"><PanelRightOpen :size="16" /></button><button class="icon-button" title="刷新项目" @click="workspace.loadProjects(workspace.currentProjectId)"><RefreshCw :size="16" /></button><button class="avatar">LK</button></div></header>
-      <section class="conversation-head"><div><div class="eyebrow"><Bot :size="13" />运行诊断 Agent</div><h1>{{ workspace.conversation?.title || (activeSection === 'overview' ? '项目运行概览' : activeSection === 'templates' ? '链路模板库' : sections.find((item) => item.id === activeSection)?.label) }}</h1><p>{{ workspace.project?.description || '新建或选择一个项目开始' }}</p></div><div class="head-status"><span class="status-chip" :class="workspace.activeRun?.status || 'idle'">{{ workspace.activeRun?.status === 'running' ? '执行中' : workspace.activeRun?.status === 'completed' ? '已完成' : '就绪' }}</span><button v-if="workspace.activeRun?.status === 'running'" class="stop-button" @click="workspace.cancel"><CircleStop :size="14" />停止</button></div></section>
+      <section class="conversation-head"><div><div class="eyebrow"><Bot :size="13" />运行诊断 Agent</div><h1>{{ workspace.conversation?.title || (activeSection === 'overview' ? '项目运行概览' : activeSection === 'templates' ? '链路模板库' : sections.find((item) => item.id === activeSection)?.label) }}</h1><p>{{ workspace.project?.description || '新建或选择一个项目开始' }}</p></div><div class="head-status"><span class="status-chip" :class="workspace.activeRun?.status || 'idle'">{{ runBusy ? '执行中' : workspace.activeRun?.status === 'completed' ? '已完成' : '就绪' }}</span><button v-if="runBusy" class="stop-button" @click="workspace.cancel"><CircleStop :size="14" />停止</button></div></section>
       <section class="messages" ref="messageList">
         <div v-if="!workspace.conversation" class="welcome"><div class="welcome-orb"><Sparkles :size="22" /></div><h2>{{ activeSection === 'overview' ? '今天要检查哪条链路？' : activeSection === 'templates' ? '选择或创建链路模板' : sections.find((item) => item.id === activeSection)?.label }}</h2><p>当前项目：{{ workspace.project?.name || '尚未选择项目' }}。Agent 会读取受控观测工具并把证据放到右侧。</p><div class="quick-grid workflow-grid"><button @click="quick('执行一次全链路健康巡检，检查 Kafka、Flink、模型服务和结果输出，报告异常与观测缺口。')"><Activity :size="17" /><span><em>01 · 发现</em>运行巡检<small>建立当前健康基线</small></span></button><button @click="quick('诊断当前数据链路异常：从现象开始检查上下游，定位候选根因并给出证据。')"><ShieldCheck :size="17" /><span><em>02 · 定位</em>故障诊断<small>按证据定位根因</small></span></button><button class="recovery-entry" @click="openRecovery"><Wrench :size="17" /><span><em>03 · 闭环</em>处置与恢复<small>执行处置后重新验证链路</small></span><RotateCcw :size="15" /></button></div><div class="workspace-links"><button @click="setSection('resources')"><Waypoints :size="14" />资源与链路</button><button @click="setSection('docs')"><FileText :size="14" />排障文档</button></div></div>
         <template v-else>
-          <div v-for="message in workspace.conversation.messages" :key="message.id" class="message" :class="message.role"><div class="message-avatar">{{ message.role === 'user' ? '你' : 'SD' }}</div><div class="message-body"><div class="message-meta">{{ message.role === 'user' ? '你' : 'StreamDoctor' }}<span>{{ new Date(message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</span></div><div class="message-content">{{ message.content }}</div><div v-if="message.role === 'assistant' && message.context?.report" class="inline-report"><span class="report-dot" :class="message.context.report.classification"></span><span>{{ message.context.report.summary }}</span><button @click="rightTab = 'evidence'; activeSection = 'overview'; openRightPanel()">查看证据 <ChevronDown :size="13" /></button></div></div></div>
+          <template v-for="message in workspace.conversation.messages" :key="message.id">
+            <div class="message" :class="message.role"><div class="message-avatar">{{ message.role === 'user' ? '你' : 'SD' }}</div><div class="message-body"><div class="message-meta">{{ message.role === 'user' ? '你' : 'StreamDoctor' }}<span>{{ new Date(message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</span></div><div class="message-content">{{ message.content }}</div><div v-if="message.role === 'assistant' && message.context?.report" class="inline-report"><span class="report-dot" :class="message.context.report.classification"></span><span>{{ message.context.report.summary }}</span><button @click="rightTab = 'evidence'; activeSection = 'overview'; openRightPanel()">查看证据 <ChevronDown :size="13" /></button></div></div></div>
+            <div v-if="message.role === 'user' && runForMessage(message)" class="run-trace">
+              <div class="run-trace-head"><span class="trace-pulse" :class="runForMessage(message)?.status"></span><strong>本轮执行过程</strong><em>{{ visibleRunEvents(runForMessage(message)).length }} 步</em><span>{{ runForMessage(message)?.status }}</span></div>
+              <div class="run-trace-events"><div v-for="event in visibleRunEvents(runForMessage(message))" :key="event.seq" class="run-trace-event" :class="event.type"><span class="event-rail"></span><div><strong>{{ runEventTitle(event) }}</strong><small v-if="runEventDetail(event)">{{ runEventDetail(event) }}</small></div><time>#{{ event.seq }}</time></div></div>
+            </div>
+          </template>
           <div v-if="latestModelEvent" class="model-run-result" :class="latestModelEvent.type"><Bot :size="14" /><div><strong>{{ latestModelEvent.payload.model_id }} · {{ latestModelEvent.payload.reasoning_effort }}</strong><span v-if="latestModelEvent.type === 'model_finished'">模型生成完成</span><span v-else>{{ latestModelEvent.payload.reason }}，已使用规则诊断结果</span></div></div>
-          <div v-if="workspace.activeRun?.status === 'running'" class="thinking-row"><div class="message-avatar bot-avatar"><Sparkles :size="14" /></div><div><div class="thinking-label">Agent 正在检查</div><div class="tool-stream"><span v-for="event in toolEvents.slice(-3)" :key="event.seq" class="tool-mini" :class="event.type"><span class="mini-dot"></span>{{ executionEventLabel(event) }}</span><span class="typing"><i></i><i></i><i></i></span></div></div></div>
+          <div v-if="runBusy" class="thinking-row"><div class="message-avatar bot-avatar"><Sparkles :size="14" /></div><div><div class="thinking-label">Agent 正在检查</div><div class="tool-stream"><span v-for="event in toolEvents.slice(-3)" :key="event.seq" class="tool-mini" :class="event.type"><span class="mini-dot"></span>{{ executionEventLabel(event) }}</span><span class="typing"><i></i><i></i><i></i></span></div></div></div>
         </template>
       </section>
-      <section class="composer-wrap"><div class="quick-actions"><button @click="quick('执行一次全链路健康巡检')"><Activity :size="14" />运行巡检</button><button @click="quick('根据我接下来描述的现象开始故障诊断')"><ShieldCheck :size="14" />故障诊断</button><button @click="openRecovery"><Wrench :size="14" />处置与恢复</button><label class="replay-toggle"><input v-model="replay" value="model_slow" type="checkbox" />回放模型变慢</label></div><div class="composer"><textarea v-model="input" rows="1" placeholder="描述异常现象，或输入 / 选择受控命令…" @keydown.enter.exact.prevent="submit"></textarea><button class="send-button" :disabled="!input.trim() || workspace.activeRun?.status === 'running'" @click="submit"><Send :size="17" /></button></div><div class="model-bar"><div class="model-select"><Bot :size="12" /><select v-model="selectedModelId" :disabled="workspace.activeRun?.status === 'running'" title="选择会话模型" @change="changeModel"><option v-for="model in workspace.modelConfig.models" :key="model.id" :value="model.id">{{ model.name }}</option></select></div><div class="model-select"><Sparkles :size="12" /><select v-model="selectedReasoningEffort" :disabled="workspace.activeRun?.status === 'running'" title="选择推理强度" @change="changeReasoningEffort"><option v-for="effort in reasoningEfforts" :key="effort" :value="effort">{{ effort }}</option></select></div><span class="model-state" :class="{ configured: workspace.modelConfig.configured }">{{ workspace.modelConfig.configured ? 'API 已配置' : '规则降级模式' }}</span></div><div class="composer-foot"><span><ShieldCheck :size="12" />审查只读 · 执行白名单 · 全程审计</span><span>Enter 发送 · Shift + Enter 换行</span></div></section>
+      <section class="composer-wrap"><div class="quick-actions"><button @click="quick('执行一次全链路健康巡检')"><Activity :size="14" />运行巡检</button><button @click="quick('根据我接下来描述的现象开始故障诊断')"><ShieldCheck :size="14" />故障诊断</button><button @click="openRecovery"><Wrench :size="14" />处置与恢复</button><label class="replay-toggle"><input v-model="replay" value="model_slow" type="checkbox" />回放模型变慢</label></div><div class="composer"><textarea v-model="input" rows="1" placeholder="描述异常现象，或输入 / 选择受控命令…" @keydown.enter.exact.prevent="submit"></textarea><button class="send-button" :disabled="!input.trim() || runBusy" @click="submit"><Send :size="17" /></button></div><div class="model-bar"><div class="model-select"><Bot :size="12" /><select v-model="selectedModelId" :disabled="runBusy" title="选择会话模型" @change="changeModel"><option v-for="model in workspace.modelConfig.models" :key="model.id" :value="model.id">{{ model.name }}</option></select></div><div class="model-select"><Sparkles :size="12" /><select v-model="selectedReasoningEffort" :disabled="runBusy" title="选择推理强度" @change="changeReasoningEffort"><option v-for="effort in reasoningEfforts" :key="effort" :value="effort">{{ effort }}</option></select></div><span class="model-state" :class="{ configured: workspace.modelConfig.configured }">{{ workspace.modelConfig.configured ? 'API 已配置' : '规则降级模式' }}</span></div><div class="composer-foot"><span><ShieldCheck :size="12" />审查只读 · 执行白名单 · 全程审计</span><span>Enter 发送 · Shift + Enter 换行</span></div></section>
       <div v-if="slashMenuOpen && slashOptions.length" class="slash-command-menu"><div class="slash-command-head"><SquareTerminal :size="13" /><span>命令</span><small>Enter 选择</small></div><button v-for="command in slashOptions" :key="command.command" @mousedown.prevent="chooseSlashCommand(command.command)"><span class="slash-command-icon"><component :is="command.icon" :size="16" /></span><span><strong>{{ command.command }} · {{ command.title }}</strong><small>{{ command.description }}</small></span></button></div>
     </main>
 

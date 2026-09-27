@@ -54,6 +54,40 @@ def test_workspace_conversation_loop_and_sse(tmp_path, monkeypatch):
         assert duplicate.json()["duplicate"] is True
 
 
+def test_conversation_supports_multiple_sequential_runs(tmp_path, monkeypatch):
+    client, _ = client_for(tmp_path, monkeypatch)
+    with client:
+        conversation = client.post("/api/agent/projects/elevator-regtcn/conversations", json={"title": "连续追问"}).json()
+        first = client.post("/api/agent/conversations/{}/messages".format(conversation["id"]), json={
+            "content": "先检查链路状态", "mode": "replay", "replay": "normal", "request_id": "round-one",
+        }).json()
+        assert wait_run(client, first["run_id"])["status"] == "completed"
+
+        second = client.post("/api/agent/conversations/{}/messages".format(conversation["id"]), json={
+            "content": "继续检查模型延迟", "mode": "replay", "replay": "model_slow", "request_id": "round-two",
+        }).json()
+        assert second["run_id"] != first["run_id"]
+        assert wait_run(client, second["run_id"])["status"] == "completed"
+
+        messages = client.get("/api/agent/conversations/{}".format(conversation["id"])).json()["messages"]
+        assert [item["role"] for item in messages] == ["user", "assistant", "user", "assistant"]
+        assert {item["run_id"] for item in messages} == {first["run_id"], second["run_id"]}
+
+
+def test_new_message_is_rejected_while_another_run_is_active(tmp_path, monkeypatch):
+    client, store = client_for(tmp_path, monkeypatch)
+    with client:
+        conversation = client.post("/api/agent/projects/elevator-regtcn/conversations", json={"title": "并发边界"}).json()
+        active = store.create_run(conversation["id"], "active-run", {"tool_calls": 0})
+        response = client.post("/api/agent/conversations/{}/messages".format(conversation["id"]), json={
+            "content": "不应静默合并到上一轮", "request_id": "new-request",
+        })
+        assert active["status"] == "queued"
+        assert response.status_code == 409
+        assert "仍有任务在执行" in response.json()["detail"]
+        assert store.messages(conversation["id"]) == []
+
+
 def test_model_catalog_and_conversation_selection_are_persisted(tmp_path, monkeypatch):
     client, _ = client_for(tmp_path, monkeypatch)
     with client:

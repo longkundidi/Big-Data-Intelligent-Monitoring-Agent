@@ -14,6 +14,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const memories = ref<any[]>([])
   const activeRun = ref<any>(null)
   const events = ref<any[]>([])
+  const runDetails = ref<Record<string, any>>({})
   const loading = ref(false)
   const error = ref('')
   let eventSource: EventSource | null = null
@@ -28,15 +29,21 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   function watchRun(runId: string) {
     closeStream()
     eventSource = new EventSource(`/api/agent/runs/${runId}/events`)
-    const onEvent = (raw: MessageEvent) => {
+    const onEvent = async (raw: MessageEvent) => {
       const value = JSON.parse(raw.data)
       events.value.push(value)
+      const existing = runDetails.value[runId] || activeRun.value || { id: runId, events: [] }
+      runDetails.value = { ...runDetails.value, [runId]: { ...existing, events: [...events.value] } }
       if (value.type === 'message') {
         conversation.value?.messages.push({ id: crypto.randomUUID(), role: 'assistant', content: value.payload.content, created_at: new Date().toISOString(), context: value.payload })
       }
       if (value.type === 'run_finished' || value.type === 'run_failed' || value.type === 'run_cancelled') {
         closeStream()
-        getRun(runId)
+        await getRun(runId)
+        if (conversation.value) {
+          conversation.value = (await agentApi.conversation(conversation.value.id)).data
+          conversations.value = (await agentApi.conversations(currentProjectId.value, true)).data
+        }
       }
     }
     for (const type of ['run_queued', 'run_started', 'context_ready', 'investigation_decision', 'hypothesis_updated', 'investigation_stopped', 'tool_started', 'tool_finished', 'agent_message', 'subagent_started', 'subagent_finished', 'reviewer_started', 'reviewer_finished', 'reviewer_recheck_finished', 'executor_plan', 'executor_started', 'executor_finished', 'executor_blocked', 'model_started', 'model_usage', 'model_finished', 'model_skipped', 'model_failed', 'artifact', 'memory_proposal', 'message', 'budget_exhausted', 'run_finished', 'run_failed', 'run_cancelled']) {
@@ -84,6 +91,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     conversation.value = null
     activeRun.value = null
     events.value = []
+    runDetails.value = {}
   }
 
   async function createProject(payload: { name: string; description?: string; topology_id?: string; template?: boolean; template_id?: string; template_version?: number }) {
@@ -215,6 +223,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       conversation.value = null
       activeRun.value = null
       events.value = []
+      runDetails.value = {}
     }
   }
 
@@ -230,37 +239,50 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       conversation.value = null
       activeRun.value = null
       events.value = []
+      runDetails.value = {}
     }
   }
 
   async function openConversation(id: string) {
     closeStream()
     conversation.value = (await agentApi.conversation(id)).data
-    const latestRun = conversation.value.active_run || [...(conversation.value.messages || [])].reverse().find((item: any) => item.run_id)?.run_id
-    activeRun.value = latestRun ? await getRun(latestRun) : null
+    const runIds = [...new Set((conversation.value.messages || []).map((item: any) => item.run_id).filter(Boolean))] as string[]
+    const details = await Promise.all(runIds.map((runId) => agentApi.run(runId).then((response) => response.data)))
+    runDetails.value = Object.fromEntries(details.map((run: any) => [run.id, run]))
+    const latestRunId = conversation.value.active_run || runIds.at(-1)
+    activeRun.value = latestRunId ? runDetails.value[latestRunId] : null
     events.value = activeRun.value?.events || []
+    if (conversation.value.active_run) watchRun(conversation.value.active_run)
   }
 
   async function getRun(id: string) {
     const result = (await agentApi.run(id)).data
     activeRun.value = result
     events.value = result.events || []
+    runDetails.value = { ...runDetails.value, [id]: result }
     return result
   }
 
   async function send(content: string, replay?: string) {
     if (!content.trim()) return
+    if (['queued', 'running'].includes(activeRun.value?.status)) {
+      error.value = '当前任务仍在执行，请等待完成或先停止任务'
+      return
+    }
     if (!conversation.value) await newConversation()
     if (!conversation.value) return
     error.value = ''
     const requestId = crypto.randomUUID()
-    conversation.value.messages.push({ id: requestId, role: 'user', content, created_at: new Date().toISOString(), context: {} })
+    const optimisticMessage = { id: requestId, role: 'user', content, created_at: new Date().toISOString(), context: {}, run_id: null as string | null }
+    conversation.value.messages.push(optimisticMessage)
     try {
       const result = await agentApi.send(conversation.value.id, { content, request_id: requestId, mode: replay ? 'replay' : 'live', replay })
+      optimisticMessage.run_id = result.data.run_id
       activeRun.value = await getRun(result.data.run_id)
       watchRun(result.data.run_id)
     } catch (e: any) {
       error.value = e?.response?.data?.detail || '消息发送失败，请重试'
+      conversation.value.messages = conversation.value.messages.filter((item: any) => item.id !== requestId)
     }
   }
 
@@ -299,7 +321,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function revoke(id: string) { await agentApi.revokeMemory(currentProjectId.value, id); memories.value = (await agentApi.memories(currentProjectId.value)).data }
 
   return {
-    projects, templates, modelConfig, benchmark, project, configuration, conversations, conversation, memories, activeRun, events, loading, error, currentProjectId,
+    projects, templates, modelConfig, benchmark, project, configuration, conversations, conversation, memories, activeRun, events, runDetails, loading, error, currentProjectId,
     loadProjects, loadTemplates, loadModels, loadBenchmark, selectProject, createProject, createTemplate, templateDetail, publishTemplate, restoreTemplate, cloneTemplate,
     publishSpec, restoreSpec, proposeSpec, initializeProject, uploadDocument, saveProjectAsTemplate,
     updateProject, archiveProject, newConversation, updateConversation, archiveConversation, restoreConversation, deleteConversation, openConversation, send, getRun,

@@ -802,9 +802,13 @@ def workspace_message(conversation_id: str, body: MessageCreate):
     conversation = store.conversation(conversation_id)
     if not conversation:
         raise HTTPException(404, "会话不存在")
+    duplicate_message = store.message_by_request(conversation_id, body.request_id)
+    if duplicate_message:
+        return {"conversation_id": conversation_id, "run_id": duplicate_message.get("run_id"),
+                "status": "duplicate", "duplicate": True}
     active = store.active_run(conversation_id)
     if active:
-        return {"conversation_id": conversation_id, "run_id": active, "status": "running", "duplicate": True}
+        raise HTTPException(409, "当前会话仍有任务在执行，请等待完成或先停止任务")
     message, created = store.add_message(conversation_id, "user", body.content,
                                          {"resource_ids": body.resource_ids, "time_range": body.time_range}, body.request_id)
     if not created:

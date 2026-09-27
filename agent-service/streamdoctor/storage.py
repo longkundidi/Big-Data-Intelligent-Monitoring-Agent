@@ -517,6 +517,16 @@ class Store:
             db.execute("UPDATE conversations SET updated_at=? WHERE id=?", (message["created_at"], conversation_id))
         return message, True
 
+    def message_by_request(self, conversation_id, request_id):
+        if not request_id:
+            return None
+        with self.connection() as db:
+            row = db.execute(
+                "SELECT * FROM messages WHERE conversation_id=? AND request_id=?",
+                (conversation_id, request_id),
+            ).fetchone()
+        return dict(row) if row else None
+
     def attach_message_run(self, message_id, run_id):
         with self.lock, self.connection() as db:
             db.execute("UPDATE messages SET run_id=? WHERE id=?", (run_id, message_id))
