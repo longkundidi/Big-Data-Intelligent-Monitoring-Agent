@@ -81,7 +81,6 @@ const collaborationMessages = computed(() => {
   if (persisted.length) return persisted
   return workspace.events.filter((item: any) => item.type === 'agent_message').map((item: any) => item.payload)
 })
-const latestModelEvent = computed(() => [...workspace.events].reverse().find((item: any) => ['model_finished', 'model_skipped', 'model_failed'].includes(item.type)))
 const runBusy = computed(() => ['queued', 'running'].includes(workspace.activeRun?.status))
 const latestReport = computed(() => assistantMessages.value.at(-1)?.context?.report || null)
 const recoveryActions = computed<string[]>(() => latestReport.value?.actions || [])
@@ -118,9 +117,56 @@ function runForMessage(message: any) {
   if (workspace.activeRun?.id === message.run_id) return { ...workspace.activeRun, events: workspace.events }
   return workspace.runDetails[message.run_id] || null
 }
-function visibleRunEvents(run: any) {
-  const hidden = new Set(['run_queued', 'agent_message', 'subagent_started', 'subagent_finished', 'model_usage', 'artifact', 'message'])
-  return (run?.events || []).filter((event: any) => !hidden.has(event.type))
+function activityEvents(run: any) {
+  const result: any[] = []
+  const toolIndexes = new Map<string, number>()
+  let reviewerIndex = -1
+  let executorIndex = -1
+  let modelIndex = -1
+  let hypothesisIndex = -1
+  for (const event of run?.events || []) {
+    if (event.type === 'tool_started') {
+      toolIndexes.set(event.payload.call_id, result.length)
+      result.push({ ...event, activityStatus: 'running' })
+    } else if (event.type === 'tool_finished') {
+      const index = toolIndexes.get(event.payload.call_id)
+      const item = { ...event, activityStatus: event.payload.status === 'ok' ? 'completed' : 'warning' }
+      if (index === undefined) result.push(item)
+      else result[index] = item
+    } else if (event.type === 'reviewer_started') {
+      reviewerIndex = result.length
+      result.push({ ...event, activityStatus: 'running' })
+    } else if (event.type === 'reviewer_finished' || event.type === 'reviewer_recheck_finished') {
+      const item = { ...event, activityStatus: 'completed' }
+      if (reviewerIndex < 0) result.push(item)
+      else result[reviewerIndex] = item
+    } else if (event.type === 'executor_started' || event.type === 'executor_plan') {
+      if (executorIndex < 0) {
+        executorIndex = result.length
+        result.push({ ...event, activityStatus: 'running' })
+      }
+    } else if (event.type === 'executor_finished' || event.type === 'executor_blocked') {
+      const item = { ...event, activityStatus: event.type === 'executor_blocked' ? 'warning' : 'completed' }
+      if (executorIndex < 0) result.push(item)
+      else result[executorIndex] = item
+    } else if (event.type === 'model_started') {
+      modelIndex = result.length
+      result.push({ ...event, activityStatus: 'running' })
+    } else if (['model_finished', 'model_skipped', 'model_failed'].includes(event.type)) {
+      const item = { ...event, activityStatus: event.type === 'model_finished' ? 'completed' : 'warning' }
+      if (modelIndex < 0) result.push(item)
+      else result[modelIndex] = item
+    } else if (event.type === 'hypothesis_updated') {
+      const item = { ...event, activityStatus: 'completed' }
+      if (hypothesisIndex < 0) {
+        hypothesisIndex = result.length
+        result.push(item)
+      } else result[hypothesisIndex] = item
+    } else if (['run_started', 'context_ready', 'investigation_stopped', 'budget_exhausted', 'run_finished', 'run_failed', 'run_cancelled'].includes(event.type)) {
+      result.push({ ...event, activityStatus: event.type === 'run_failed' || event.type === 'run_cancelled' ? 'warning' : 'completed' })
+    }
+  }
+  return result
 }
 function runEventTitle(event: any) {
   const labels: Record<string, string> = {
@@ -138,7 +184,7 @@ function runEventTitle(event: any) {
 }
 function runEventDetail(event: any) {
   const payload = event.payload || {}
-  if (event.type.startsWith('tool_')) return payload.tool || payload.status || ''
+  if (event.type.startsWith('tool_')) return [payload.tool, payload.status].filter(Boolean).join(' · ')
   if (event.type.startsWith('model_')) return [payload.model_id, payload.reason].filter(Boolean).join(' · ')
   if (event.type === 'investigation_decision') return payload.reason || payload.next_tool || ''
   if (event.type === 'hypothesis_updated') return payload.title || payload.code || payload.status || ''
@@ -521,13 +567,11 @@ watch(input, (value) => {
         <template v-else>
           <template v-for="message in workspace.conversation.messages" :key="message.id">
             <div class="message" :class="message.role"><div class="message-avatar">{{ message.role === 'user' ? '你' : 'SD' }}</div><div class="message-body"><div class="message-meta">{{ message.role === 'user' ? '你' : 'StreamDoctor' }}<span>{{ new Date(message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</span></div><div class="message-content">{{ message.content }}</div><div v-if="message.role === 'assistant' && message.context?.report" class="inline-report"><span class="report-dot" :class="message.context.report.classification"></span><span>{{ message.context.report.summary }}</span><button @click="rightTab = 'evidence'; activeSection = 'overview'; openRightPanel()">查看证据 <ChevronDown :size="13" /></button></div></div></div>
-            <div v-if="message.role === 'user' && runForMessage(message)" class="run-trace">
-              <div class="run-trace-head"><span class="trace-pulse" :class="runForMessage(message)?.status"></span><strong>本轮执行过程</strong><em>{{ visibleRunEvents(runForMessage(message)).length }} 步</em><span>{{ runForMessage(message)?.status }}</span></div>
-              <div class="run-trace-events"><div v-for="event in visibleRunEvents(runForMessage(message))" :key="event.seq" class="run-trace-event" :class="event.type"><span class="event-rail"></span><div><strong>{{ runEventTitle(event) }}</strong><small v-if="runEventDetail(event)">{{ runEventDetail(event) }}</small></div><time>#{{ event.seq }}</time></div></div>
+            <div v-if="message.role === 'user' && runForMessage(message)" class="agent-activity" :class="runForMessage(message)?.status">
+              <div class="agent-activity-label"><Sparkles :size="13" /><strong>{{ ['queued', 'running'].includes(runForMessage(message)?.status) ? 'Agent 正在工作' : 'Agent 已完成检查' }}</strong><span>{{ activityEvents(runForMessage(message)).length }} 个阶段</span></div>
+              <TransitionGroup name="activity" tag="div" class="agent-activity-stream"><div v-for="event in activityEvents(runForMessage(message))" :key="event.payload?.call_id || event.type" class="agent-activity-line" :class="event.activityStatus"><span class="activity-state"><i></i></span><div><strong>{{ runEventTitle(event) }}</strong><small v-if="runEventDetail(event)">{{ runEventDetail(event) }}</small></div></div></TransitionGroup>
             </div>
           </template>
-          <div v-if="latestModelEvent" class="model-run-result" :class="latestModelEvent.type"><Bot :size="14" /><div><strong>{{ latestModelEvent.payload.model_id }} · {{ latestModelEvent.payload.reasoning_effort }}</strong><span v-if="latestModelEvent.type === 'model_finished'">模型生成完成</span><span v-else>{{ latestModelEvent.payload.reason }}，已使用规则诊断结果</span></div></div>
-          <div v-if="runBusy" class="thinking-row"><div class="message-avatar bot-avatar"><Sparkles :size="14" /></div><div><div class="thinking-label">Agent 正在检查</div><div class="tool-stream"><span v-for="event in toolEvents.slice(-3)" :key="event.seq" class="tool-mini" :class="event.type"><span class="mini-dot"></span>{{ executionEventLabel(event) }}</span><span class="typing"><i></i><i></i><i></i></span></div></div></div>
         </template>
       </section>
       <section class="composer-wrap"><div class="quick-actions"><button @click="quick('执行一次全链路健康巡检')"><Activity :size="14" />运行巡检</button><button @click="quick('根据我接下来描述的现象开始故障诊断')"><ShieldCheck :size="14" />故障诊断</button><button @click="openRecovery"><Wrench :size="14" />处置与恢复</button><label class="replay-toggle"><input v-model="replay" value="model_slow" type="checkbox" />回放模型变慢</label></div><div class="composer"><textarea v-model="input" rows="1" placeholder="描述异常现象，或输入 / 选择受控命令…" @keydown.enter.exact.prevent="submit"></textarea><button class="send-button" :disabled="!input.trim() || runBusy" @click="submit"><Send :size="17" /></button></div><div class="model-bar"><div class="model-select"><Bot :size="12" /><select v-model="selectedModelId" :disabled="runBusy" title="选择会话模型" @change="changeModel"><option v-for="model in workspace.modelConfig.models" :key="model.id" :value="model.id">{{ model.name }}</option></select></div><div class="model-select"><Sparkles :size="12" /><select v-model="selectedReasoningEffort" :disabled="runBusy" title="选择推理强度" @change="changeReasoningEffort"><option v-for="effort in reasoningEfforts" :key="effort" :value="effort">{{ effort }}</option></select></div><span class="model-state" :class="{ configured: workspace.modelConfig.configured }">{{ workspace.modelConfig.configured ? 'API 已配置' : '规则降级模式' }}</span></div><div class="composer-foot"><span><ShieldCheck :size="12" />审查只读 · 执行白名单 · 全程审计</span><span>Enter 发送 · Shift + Enter 换行</span></div></section>
